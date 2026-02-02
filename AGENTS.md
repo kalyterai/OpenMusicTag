@@ -17,14 +17,13 @@
 ## 项目结构
 
 ```
-content-python/
+OpenMusicTag/
 ├── organizer.py           # 主程序入口 - 支持命令行参数
 ├── pipeline.py            # 管道主类 - 批量处理调度
-├── base.py                # PipelineStage 抽象基类
+├── base.py                # PipelineStage 抽象基类（含文本处理逻辑）
 ├── config.py              # 配置类 + 注册表
 ├── context.py             # Pipeline 上下文 - 共享资源和通用方法
 ├── models.py              # AudioFile 数据模型
-├── text.py                # 文本处理器 - 繁简转换和广告清理
 ├── pipelines/             # Pipeline 阶段模块
 │   ├── __init__.py
 │   ├── load_stage.py              # 加载音频文件
