@@ -1,0 +1,15 @@
+# pipelines - 音乐整理管道阶段模块（已重构）
+# 阶段文件保留在此目录，以 _stage.py 结尾
+from pipelines.load_stage import LoadStage
+from pipelines.extract_tags_stage import ExtractRawTagsStage
+from pipelines.clean_tags_stage import CleanRawTagsStage
+from pipelines.normalize_artist_stage import NormalizeArtistStage
+from pipelines.check_duplicate_stage import CheckDuplicateStage
+from pipelines.extract_filename_stage import ExtractFromFilenameStage
+from pipelines.scrape_metadata_stage import ScrapeMetadataStage, MusicBrainzClient
+from pipelines.merge_metadata_stage import MergeMetadataStage
+from pipelines.calculate_path_stage import CalculateOutputPathStage
+from pipelines.copy_file_stage import CopyFileStage
+from pipelines.download_cover_stage import DownloadCoverStage, CoverDownloader
+from pipelines.write_tags_stage import WriteTagsStage
+from pipelines.cleanup_stage import CleanupStage
