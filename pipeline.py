@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
-"""音乐整理管道 - 使用配置化动态加载"""
+"""音乐整理管道 - 使用配置化动态加载，支持 GUI 回调"""
 
 import os
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Callable
+
 
 # 导入所有 Stage 以触发注册
 from pipelines.load_stage import LoadStage
@@ -48,9 +49,19 @@ class MusicOrganizerPipeline:
     13. 清理临时文件
     """
 
-    def __init__(self, config: AppConfig):
+    def __init__(self, config: AppConfig, 
+                 on_progress: Callable[[int, int, str], None] = None,
+                 on_log: Callable[[str, str], None] = None,
+                 on_success: Callable[[dict], None] = None,
+                 on_error: Callable[[str], None] = None):
         self.config = config
         self.pipeline = self._build_pipeline()
+        
+        # GUI 回调函数
+        self.on_progress = on_progress or (lambda *args: None)
+        self.on_log = on_log or (lambda *args: None)
+        self.on_success = on_success or (lambda *args: None)
+        self.on_error = on_error or (lambda *args: None)
 
     @property
     def input_path(self) -> Path:
@@ -118,8 +129,8 @@ class MusicOrganizerPipeline:
         """批量处理音乐文件"""
         supported_formats = self.config.get_supported_formats()
 
-        print(f"扫描目录: {self.config.input_path}")
-        print(f"支持格式: {supported_formats}")
+        self.on_log(f"扫描目录: {self.config.input_path}", "info")
+        self.on_log(f"支持格式: {supported_formats}", "info")
 
         audio_files = []
         for root, _, files in os.walk(self.config.input_path):
@@ -127,20 +138,20 @@ class MusicOrganizerPipeline:
                 if f.lower().endswith(supported_formats):
                     audio_files.append(Path(root) / f)
 
-        print(f"找到 {len(audio_files)} 个文件")
+        self.on_log(f"找到 {len(audio_files)} 个文件", "info")
 
         total_files = len(audio_files)
         if total_files == 0:
-            print("未找到支持的音乐文件")
+            self.on_log("未找到支持的音乐文件", "warning")
             return
 
-        print(f"使用 {self.config.threads} 个线程处理")
-        print("=" * 60)
+        self.on_log(f"使用 {self.config.threads} 个线程处理", "info")
 
         start_time = time.time()
         completed = 0
         failed = 0
         skipped = 0
+        success_count = 0
 
         with ThreadPoolExecutor(max_workers=self.config.threads) as executor:
             futures = {executor.submit(self.process_file, f): f for f in audio_files}
@@ -153,33 +164,46 @@ class MusicOrganizerPipeline:
                         skipped += 1
                     elif output_path:
                         completed += 1
+                        success_count += 1
+                        # 回调成功信息
+                        file_info = {
+                            'artist': output_path.parent.parent.name,
+                            'album': output_path.parent.name,
+                            'title': output_path.stem
+                        }
+                        self.on_success(file_info)
                     else:
                         failed += 1
                 except Exception:
-                    print(f"\n处理失败: {file_path}")
+                    self.on_log(f"处理失败: {file_path}", "error")
                     traceback.print_exc()
                     failed += 1
 
+                # 回调进度
                 elapsed = time.time() - start_time
                 completed_count = completed + failed + skipped
                 progress = (completed_count / total_files) * 100
 
-                if completed_count > 0 and elapsed > 1:
-                    avg_time = elapsed / completed_count
-                    remaining = (total_files - completed_count) * avg_time
-                    eta = self._format_duration(remaining)
-                    print(f"\r进度: {completed_count}/{total_files} ({progress:.1f}%) | 预计剩余: {eta}", end="", flush=True)
+                if completed_count > 0 and elapsed > 0.5:
+                    self.on_progress(completed_count, total_files, file_path.name)
 
         elapsed = time.time() - start_time
-        print()
-        print("=" * 60)
-        print(f"处理完成！")
-        print(f"  成功: {completed}")
-        print(f"  跳过: {skipped}")
-        print(f"  失败: {failed}")
-        print(f"  总耗时: {self._format_duration(elapsed)}")
-        if completed > 0:
-            print(f"  平均: {self._format_duration(elapsed / (completed + failed))}/文件")
+        
+        summary = {
+            'total': total_files,
+            'completed': completed,
+            'skipped': skipped,
+            'failed': failed,
+            'success': success_count,
+            'elapsed': elapsed
+        }
+        
+        self.on_log("=" * 40, "info")
+        self.on_log(f"处理完成！", "success")
+        self.on_log(f"  成功: {success_count}", "success")
+        self.on_log(f"  跳过: {skipped}", "info")
+        self.on_log(f"  失败: {failed}", "error")
+        self.on_log(f"  总耗时: {self._format_duration(elapsed)}", "info")
 
 
 def main():
