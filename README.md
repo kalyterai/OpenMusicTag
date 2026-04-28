@@ -1,7 +1,7 @@
 <div align="center">
   <!-- 建议在此处放置一个好看的 Logo -->
   <h1>🎵 OpenMusicTag</h1>
-  <img src="./gui/src/assets/logo.png">
+  <img src="./gui/src/assets/logo.png" width="96px" height="96px">
 
   <p>
     <strong>一款强大、优雅、跨平台的开源本地音乐刮削与标签整理工具</strong>
@@ -18,8 +18,6 @@
     <a href="#-核心特性">核心特性</a>
     <span> | </span>
     <a href="#-快速开始">快速开始</a>
-    <span> | </span>
-    <a href="#-界面预览">界面预览</a>
     <span> | </span>
     <a href="#-贡献指南">贡献指南</a>
   </h3>
@@ -51,16 +49,6 @@
 *   🛠️ **智能重命名与目录整理**：支持根据获取到的标签信息（如 `[艺术家] - [专辑] - [音轨号] [标题]`）自动重命名文件，并可自动将文件归类到对应的歌手/专辑文件夹中。
 *   💿 **全格式无损支持**：完美支持 FLAC, APE, WAV, ALAC 等无损格式，以及 MP3, OGG, M4A, AAC 等主流有损格式的标签写入。
 *   💻 **跨平台原生体验**：提供 Windows, macOS, Linux 多端版本，界面优雅，开箱即用。
-
----
-
-## 📸 界面预览 (Screenshots)
-
-*(提示：此处强烈建议放 1-2 张极其精美、前后对比强烈的截图或 GIF 动图，这是转化 Star 的核心！)*
-
-| 刮削前 (乱码/无封面) | 刮削后 (完美标签/高清封面) |
-| :---: | :---: |
-| <img src="https://via.placeholder.com/400x250?text=Before+Scraping" alt="Before" width="100%"> | <img src="https://via.placeholder.com/400x250?text=After+Scraping" alt="After" width="100%"> |
 
 ---
 
