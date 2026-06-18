@@ -16,8 +16,8 @@ from PyQt6.QtGui import QIcon, QAction
 
 # 导入核心模块
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from pipeline import MusicOrganizerPipeline
-from config import AppConfig
+from core.pipeline import MusicOrganizerPipeline
+from core.config import AppConfig
 
 
 class ProcessingWorker(QThread):

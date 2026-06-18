@@ -3,11 +3,11 @@
 
 from typing import TYPE_CHECKING
 
-from base import PipelineStage
+from core.base import PipelineStage
 
 if TYPE_CHECKING:
-    from context import PipelineContext
-    from models import AudioFile
+    from core.context import PipelineContext
+    from core.models import AudioFile
 
 
 @PipelineStage.register("CheckDuplicateStage")

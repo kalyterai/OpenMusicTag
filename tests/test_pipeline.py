@@ -17,14 +17,14 @@ warnings.filterwarnings(
 
 from mutagen.wave import WAVE
 
-from config import AppConfig
-from context import PipelineContext
-from models import AudioFile
-from pipeline import MusicOrganizerPipeline
-from pipelines.check_duplicate_stage import CheckDuplicateStage
-from pipelines.clean_tags_stage import CleanRawTagsStage
-from pipelines.normalize_artist_stage import NormalizeArtistStage
-from pipelines.scrape_metadata_stage import ScrapeMetadataStage
+from core.config import AppConfig
+from core.context import PipelineContext
+from core.models import AudioFile
+from core.pipeline import MusicOrganizerPipeline
+from core.pipelines.check_duplicate_stage import CheckDuplicateStage
+from core.pipelines.clean_tags_stage import CleanRawTagsStage
+from core.pipelines.normalize_artist_stage import NormalizeArtistStage
+from core.pipelines.scrape_metadata_stage import ScrapeMetadataStage
 
 
 def create_test_wav(path: Path, duration_seconds: float = 0.05) -> None:

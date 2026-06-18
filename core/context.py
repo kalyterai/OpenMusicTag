@@ -6,7 +6,7 @@ import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from config import AppConfig
+from core.config import AppConfig
 
 
 class PipelineContext:

@@ -4,8 +4,8 @@
 
 from pathlib import Path
 
-from config import AppConfig
-from pipeline import MusicOrganizerPipeline
+from core.config import AppConfig
+from core.pipeline import MusicOrganizerPipeline
 
 
 def main():

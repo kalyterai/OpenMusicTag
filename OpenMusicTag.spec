@@ -3,7 +3,7 @@
 
 a = Analysis(
     ['/Users/xiaozhuzhu/code/python/OpenMusicTag/gui/launcher.py'],
-    pathex=[],
+    pathex=['/Users/xiaozhuzhu/code/python/OpenMusicTag', '/Users/xiaozhuzhu/code/python/OpenMusicTag/gui'],
     binaries=[],
     datas=[('/Users/xiaozhuzhu/code/python/OpenMusicTag/gui/dist', 'dist'), ('/Users/xiaozhuzhu/code/python/OpenMusicTag/gui/logo.png', '.')],
     hiddenimports=['PyQt6', 'PyQt6.QtWebEngineWidgets', 'PyQt6.QtWebChannel', 'setproctitle', 'opencc', 'mutagen', 'musicbrainzngs', 'requests', 'PIL'],

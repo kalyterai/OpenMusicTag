@@ -11,23 +11,23 @@ from typing import List, Optional, Tuple, Callable
 
 
 # 导入所有 Stage 以触发注册
-from pipelines.load_stage import LoadStage
-from pipelines.extract_tags_stage import ExtractRawTagsStage
-from pipelines.clean_tags_stage import CleanRawTagsStage
-from pipelines.normalize_artist_stage import NormalizeArtistStage
-from pipelines.check_duplicate_stage import CheckDuplicateStage
-from pipelines.extract_filename_stage import ExtractFromFilenameStage
-from pipelines.scrape_metadata_stage import ScrapeMetadataStage
-from pipelines.merge_metadata_stage import MergeMetadataStage
-from pipelines.calculate_path_stage import CalculateOutputPathStage
-from pipelines.copy_file_stage import CopyFileStage
-from pipelines.download_cover_stage import DownloadCoverStage
-from pipelines.write_tags_stage import WriteTagsStage
-from pipelines.cleanup_stage import CleanupStage
+from core.pipelines.load_stage import LoadStage
+from core.pipelines.extract_tags_stage import ExtractRawTagsStage
+from core.pipelines.clean_tags_stage import CleanRawTagsStage
+from core.pipelines.normalize_artist_stage import NormalizeArtistStage
+from core.pipelines.check_duplicate_stage import CheckDuplicateStage
+from core.pipelines.extract_filename_stage import ExtractFromFilenameStage
+from core.pipelines.scrape_metadata_stage import ScrapeMetadataStage
+from core.pipelines.merge_metadata_stage import MergeMetadataStage
+from core.pipelines.calculate_path_stage import CalculateOutputPathStage
+from core.pipelines.copy_file_stage import CopyFileStage
+from core.pipelines.download_cover_stage import DownloadCoverStage
+from core.pipelines.write_tags_stage import WriteTagsStage
+from core.pipelines.cleanup_stage import CleanupStage
 
-from config import AppConfig, PipelineRegistry
-from context import PipelineContext
-from models import AudioFile
+from core.config import AppConfig, PipelineRegistry
+from core.context import PipelineContext
+from core.models import AudioFile
 
 
 class MusicOrganizerPipeline:

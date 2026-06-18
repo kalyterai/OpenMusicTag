@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 import opencc
 
 if TYPE_CHECKING:
-    from context import PipelineContext
-    from models import AudioFile
+    from core.context import PipelineContext
+    from core.models import AudioFile
 
 
 class _TextProcessor:
@@ -168,5 +168,5 @@ class PipelineStage(ABC):
         """注册到全局注册表"""
         if name is None:
             name = cls.NAME
-        from config import PipelineRegistry
+        from core.config import PipelineRegistry
         return PipelineRegistry.register(name)

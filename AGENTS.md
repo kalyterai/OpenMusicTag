@@ -18,28 +18,33 @@
 
 ```
 OpenMusicTag/
-├── organizer.py           # 主程序入口 - 支持命令行参数
-├── pipeline.py            # 管道主类 - 批量处理调度
-├── base.py                # PipelineStage 抽象基类（含文本处理逻辑）
-├── config.py              # 配置类 + 注册表
-├── context.py             # Pipeline 上下文 - 共享资源和通用方法
-├── models.py              # AudioFile 数据模型
-├── pipelines/             # Pipeline 阶段模块
+├── organizer.py               # 主程序入口（CLI）- 支持命令行参数
+├── core/                      # 核心引擎包（import 形式：from core.xxx import ...）
 │   ├── __init__.py
-│   ├── load_stage.py              # 加载音频文件
-│   ├── extract_tags_stage.py      # 提取原始标签
-│   ├── clean_tags_stage.py        # 清理广告乱码
-│   ├── normalize_artist_stage.py  # 标准化艺人名称
-│   ├── check_duplicate_stage.py   # 检测重复文件
-│   ├── extract_filename_stage.py  # 解析文件名
-│   ├── scrape_metadata_stage.py   # MusicBrainz 刮削
-│   ├── merge_metadata_stage.py    # 合并元数据
-│   ├── calculate_path_stage.py    # 计算输出路径
-│   ├── copy_file_stage.py         # 复制文件
-│   ├── download_cover_stage.py    # 下载专辑封面
-│   ├── write_tags_stage.py        # 写入标签
-│   └── cleanup_stage.py           # 清理临时文件
-└── AGENTS.md              # 本文档
+│   ├── pipeline.py            # 管道主类 - 批量处理调度
+│   ├── base.py                # PipelineStage 抽象基类（含文本处理逻辑）
+│   ├── config.py              # 配置类 + 注册表
+│   ├── context.py             # Pipeline 上下文 - 共享资源和通用方法
+│   ├── models.py              # AudioFile 数据模型
+│   └── pipelines/             # Pipeline 阶段模块
+│       ├── __init__.py
+│       ├── load_stage.py              # 加载音频文件
+│       ├── extract_tags_stage.py      # 提取原始标签
+│       ├── clean_tags_stage.py        # 清理广告乱码
+│       ├── normalize_artist_stage.py  # 标准化艺人名称
+│       ├── check_duplicate_stage.py   # 检测重复文件
+│       ├── extract_filename_stage.py  # 解析文件名
+│       ├── scrape_metadata_stage.py   # MusicBrainz 刮削
+│       ├── merge_metadata_stage.py    # 合并元数据
+│       ├── calculate_path_stage.py    # 计算输出路径
+│       ├── copy_file_stage.py         # 复制文件
+│       ├── download_cover_stage.py    # 下载专辑封面
+│       ├── write_tags_stage.py        # 写入标签
+│       └── cleanup_stage.py           # 清理临时文件
+├── gui/                       # PyQt6 + WebEngine + React 桌面应用
+├── tests/                     # 单元测试
+├── docs/                      # 设计与评审文档（solution.md、code_review_report.md）
+└── AGENTS.md                  # 本文档
 ```
 
 ## 依赖安装
@@ -103,7 +108,7 @@ python organizer.py /Volumes/shared/music -o /Volumes/shared/music_organized
 
 ### MusicOrganizerPipeline
 
-管道主类，位于 `pipeline.py`，负责：
+管道主类，位于 `core/pipeline.py`，负责：
 
 | 属性/方法 | 说明 |
 |-----------|------|
@@ -117,7 +122,7 @@ python organizer.py /Volumes/shared/music -o /Volumes/shared/music_organized
 
 ### AppConfig
 
-配置类，位于 `config.py`，支持：
+配置类，位于 `core/config.py`，支持：
 
 | 功能 | 说明 |
 |------|------|
@@ -132,7 +137,7 @@ python organizer.py /Volumes/shared/music -o /Volumes/shared/music_organized
 
 ### PipelineRegistry
 
-注册表，位于 `config.py`，用于动态加载 Stage：
+注册表，位于 `core/config.py`，用于动态加载 Stage：
 
 | 方法 | 说明 |
 |------|------|
@@ -143,7 +148,7 @@ python organizer.py /Volumes/shared/music -o /Volumes/shared/music_organized
 
 ### PipelineContext
 
-上下文类，位于 `context.py`，提供共享资源和方法：
+上下文类，位于 `core/context.py`，提供共享资源和方法：
 
 | 方法 | 说明 |
 |------|------|
@@ -156,7 +161,7 @@ python organizer.py /Volumes/shared/music -o /Volumes/shared/music_organized
 
 ### AudioFile
 
-数据模型，位于 `models.py`：
+数据模型，位于 `core/models.py`：
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -171,7 +176,7 @@ python organizer.py /Volumes/shared/music -o /Volumes/shared/music_organized
 
 ## PipelineStage 基类
 
-所有 Stage 继承的抽象基类，位于 `base.py`：
+所有 Stage 继承的抽象基类，位于 `core/base.py`：
 
 ```python
 class PipelineStage(ABC):
@@ -208,7 +213,7 @@ class PipelineStage(ABC):
 可生成自定义配置文件：
 
 ```python
-from config import generate_default_config
+from core.config import generate_default_config
 
 generate_default_config("/path/to/input", "/path/to/output", "pipeline_config.json")
 ```
