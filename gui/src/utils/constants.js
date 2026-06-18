@@ -57,7 +57,7 @@ export const PAGES = {
 export const APP_INFO = {
   name: 'OpenMusicTag',
   version: '1.0.0',
-  description: '极空间 NAS 音乐整理工具'
+  description: '通用音乐刮削软件'
 };
 
 // 主题色

@@ -2,9 +2,10 @@
 """音乐整理管道 - 使用配置化动态加载，支持 GUI 回调"""
 
 import os
+import threading
 import time
 import traceback
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import CancelledError, ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import List, Optional, Tuple, Callable
 
@@ -53,9 +54,11 @@ class MusicOrganizerPipeline:
                  on_progress: Callable[[int, int, str], None] = None,
                  on_log: Callable[[str, str], None] = None,
                  on_success: Callable[[dict], None] = None,
-                 on_error: Callable[[str], None] = None):
+                 on_error: Callable[[str], None] = None,
+                 cancel_event: Optional[threading.Event] = None):
         self.config = config
         self.pipeline = self._build_pipeline()
+        self.cancel_event = cancel_event
         
         # GUI 回调函数
         self.on_progress = on_progress or (lambda *args: None)
@@ -99,11 +102,13 @@ class MusicOrganizerPipeline:
 
     def process_file(self, file_path: Path) -> Tuple[Optional[Path], bool]:
         """处理单个文件（每次调用创建新的 context，确保线程安全）"""
-        context = PipelineContext(self.config)
+        context = PipelineContext(self.config, self.cancel_event)
         audio_file = AudioFile(path=file_path, ext=file_path.suffix.lower())
 
         # 依次执行所有阶段
         for stage in self.pipeline:
+            if not context.should_continue():
+                break
             try:
                 audio_file = stage.process(audio_file, context)
             except Exception:
@@ -134,6 +139,9 @@ class MusicOrganizerPipeline:
 
         audio_files = []
         for root, _, files in os.walk(self.config.input_path):
+            if self.cancel_event and self.cancel_event.is_set():
+                self.on_log("任务已取消，停止扫描", "warning")
+                return
             for f in files:
                 if f.lower().endswith(supported_formats):
                     audio_files.append(Path(root) / f)
@@ -157,6 +165,10 @@ class MusicOrganizerPipeline:
             futures = {executor.submit(self.process_file, f): f for f in audio_files}
 
             for future in as_completed(futures):
+                if self.cancel_event and self.cancel_event.is_set():
+                    for pending in futures:
+                        pending.cancel()
+
                 file_path = futures[future]
                 try:
                     output_path, skipped_file = future.result()
@@ -174,6 +186,8 @@ class MusicOrganizerPipeline:
                         self.on_success(file_info)
                     else:
                         failed += 1
+                except CancelledError:
+                    skipped += 1
                 except Exception:
                     self.on_log(f"处理失败: {file_path}", "error")
                     traceback.print_exc()
@@ -187,6 +201,9 @@ class MusicOrganizerPipeline:
                 if completed_count > 0 and elapsed > 0.5:
                     self.on_progress(completed_count, total_files, file_path.name)
 
+                if self.cancel_event and self.cancel_event.is_set():
+                    break
+
         elapsed = time.time() - start_time
         
         summary = {
@@ -199,6 +216,10 @@ class MusicOrganizerPipeline:
         }
         
         self.on_log("=" * 40, "info")
+        if self.cancel_event and self.cancel_event.is_set():
+            self.on_log("处理已取消", "warning")
+            return
+
         self.on_log(f"处理完成！", "success")
         self.on_log(f"  成功: {success_count}", "success")
         self.on_log(f"  跳过: {skipped}", "info")
@@ -210,7 +231,7 @@ def main():
     """主函数"""
     import argparse
 
-    parser = argparse.ArgumentParser(description="极空间 NAS 音乐整理工具")
+    parser = argparse.ArgumentParser(description="通用音乐刮削软件")
     parser.add_argument("input", help="输入文件夹路径")
     parser.add_argument("-o", "--output", help="输出文件夹路径（默认: 与输入同目录）")
     parser.add_argument("-t", "--threads", type=int, default=4, help="线程数（默认: 4）")

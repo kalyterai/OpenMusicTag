@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import useAppStore from '../stores/appStore';
+import useAppStore, { useWorkflowConfig } from '../stores/appStore';
 import { useQtBridge } from '../bridge';
 
 // SVG Icons
@@ -161,7 +161,13 @@ export default function Workflow({ bridgeReady }) {
 
     try {
       // 开始处理
-      await startProcess(localConfig.inputPath, localConfig.outputPath, localConfig.threads);
+      await startProcess(localConfig.inputPath, localConfig.outputPath, localConfig.threads, {
+        enableCoverDownload: localConfig.enableCoverDownload,
+        enableSimplifiedChinese: localConfig.enableSimplifiedChinese,
+        enableDuplicateCheck: localConfig.enableDuplicateCheck,
+        enableFilenameParse: localConfig.enableFilenameParse,
+        enableMetadataScrape: localConfig.enableMetadataScrape,
+      });
       
       // 记录历史
       addHistory({

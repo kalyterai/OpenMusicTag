@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""极空间 NAS 音乐整理工具 - 使用配置化 Pipeline"""
+"""通用音乐刮削软件 - 使用配置化 Pipeline"""
 
 from pathlib import Path
 
@@ -11,16 +11,16 @@ from pipeline import MusicOrganizerPipeline
 def main():
     """主函数：交互式设置"""
     print("=" * 60)
-    print("极空间 NAS 音乐整理工具 (Configurable Pipeline)")
+    print("通用音乐刮削软件 (Configurable Pipeline)")
     print("功能：繁简转换 | 去广告乱码 | 刮削元数据 | 智能整理")
     print("=" * 60)
 
-    nas_path = "/Volumes/z2pro/音乐"
-    output_path = "/Volumes/z2pro/音乐歌曲"
+    input_path = "/path/to/music"
+    output_path = "/path/to/music_organized"
     threads = 8
     # 初始化配置
     config = AppConfig(
-        input_path=Path(nas_path), output_path=Path(output_path), threads=threads
+        input_path=Path(input_path), output_path=Path(output_path), threads=threads
     )
 
     # 创建管道并处理

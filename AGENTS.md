@@ -1,8 +1,8 @@
-# AGENTS.md - 极空间 NAS 音乐整理工具
+# AGENTS.md - 通用音乐刮削软件
 
 ## 项目概述
 
-本项目是一个 **极空间 NAS 音乐整理工具**，采用 **Pipeline 架构**实现模块化的音乐文件处理流水线。主要功能包括：
+本项目是一个 **通用音乐刮削软件**，采用 **Pipeline 架构**实现模块化的音乐文件处理流水线。主要功能包括：
 
 - **文件加载**：支持多种音频格式的加载和解析
 - **繁简转换**：将台湾/香港繁体歌词转换为大陆简体
@@ -56,25 +56,25 @@ pip install opencc mutagen musicbrainzngs requests Pillow
 python organizer.py <输入目录> [-o <输出目录>] [-t <线程数>]
 
 # 示例
-python organizer.py /Volumes/z2pro/music -o /Volumes/z2pro/music_organized -t 4
+python organizer.py /path/to/music -o /path/to/music_organized -t 4
 ```
 
 ### 方式二：交互式运行
 
-修改 `organizer.py` 中的 `nas_path` 和 `output_path` 配置后运行：
+修改 `organizer.py` 中的 `input_path` 和 `output_path` 配置后运行：
 
 ```bash
 python organizer.py
 ```
 
-### 挂载极空间 SMB 共享
+### 处理本地或网络共享音乐目录
 
 ```bash
-# macOS
-mount_smbfs //15605153906a@192.168.31.119/z2pro ~/Documents/NasMusic
+# 本地目录示例
+python organizer.py ~/Music -o ~/Music/organized
 
-# 或使用极空间默认挂载路径
-# macOS: /Volumes/z2pro/音乐
+# 网络共享目录示例
+python organizer.py /Volumes/shared/music -o /Volumes/shared/music_organized
 ```
 
 ## Pipeline 执行流程

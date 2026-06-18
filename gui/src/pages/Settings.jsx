@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import useAppStore from '../stores/appStore';
+import { useQtBridge } from '../bridge';
 
 // SVG Icons
 const Icons = {
@@ -67,6 +68,7 @@ function Toggle({ checked, onChange }) {
 
 export default function Settings() {
   const { config, updateConfig } = useAppStore();
+  const { updateConfig: updateQtConfig } = useQtBridge();
   const [settings, setSettings] = useState({
     enableCoverDownload: true,
     enableSimplifiedChinese: true,
@@ -85,9 +87,9 @@ export default function Settings() {
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     updateConfig(settings);
-    // TODO: 调用 bridge 保存配置
+    await updateQtConfig(settings);
     alert('设置已保存');
   };
 

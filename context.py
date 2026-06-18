@@ -2,6 +2,7 @@
 """Pipeline 上下文 - 承载共享资源和通用方法"""
 
 import re
+import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -11,13 +12,18 @@ from config import AppConfig
 class PipelineContext:
     """Pipeline 上下文 - 每次 process 调用创建新实例（线程安全）"""
 
-    def __init__(self, config: AppConfig):
+    def __init__(self, config: AppConfig, cancel_event: Optional[threading.Event] = None):
         self.config = config
+        self.cancel_event = cancel_event
         self.breakout = False  # 控制是否提前终止 pipeline
+
+    def is_cancelled(self) -> bool:
+        """检查外部是否请求取消"""
+        return bool(self.cancel_event and self.cancel_event.is_set())
 
     def should_continue(self) -> bool:
         """检查是否继续执行后续阶段"""
-        return not self.breakout
+        return not self.breakout and not self.is_cancelled()
 
     def stop(self) -> None:
         """停止后续阶段执行"""

@@ -31,6 +31,12 @@ class ProcessingWorker(QThread):
     def __init__(self, config: AppConfig):
         super().__init__()
         self.config = config
+        self.cancel_event = threading.Event()
+
+    def cancel(self):
+        """请求协作式取消"""
+        self.cancel_event.set()
+        self.requestInterruption()
 
     def run(self):
         try:
@@ -61,7 +67,7 @@ class ProcessingWorker(QThread):
                 self.error.emit(error_msg)
 
             # 创建 pipeline
-            pipeline = MusicOrganizerPipeline(self.config)
+            pipeline = MusicOrganizerPipeline(self.config, cancel_event=self.cancel_event)
 
             # 设置回调
             pipeline.on_progress = on_progress
@@ -72,7 +78,10 @@ class ProcessingWorker(QThread):
             # 执行处理
             pipeline.process()
 
-            self.finished.emit({'success': True})
+            if self.cancel_event.is_set():
+                self.finished.emit({'success': False, 'cancelled': True})
+            else:
+                self.finished.emit({'success': True})
 
         except Exception as e:
             self.error.emit(str(e))
@@ -94,6 +103,23 @@ class Bridge(QObject):
         self.window = window
         self.worker = None
         self.processing = False
+        self.config_overrides = {}
+
+    def _build_pipeline_order(self, params: dict) -> list:
+        """根据 GUI 开关构建 Pipeline 顺序"""
+        order = AppConfig._default_order()
+        disabled = set()
+
+        if params.get('enableDuplicateCheck') is False or params.get('enable_duplicate_check') is False:
+            disabled.add('CheckDuplicateStage')
+        if params.get('enableFilenameParse') is False or params.get('enable_filename_parse') is False:
+            disabled.add('ExtractFromFilenameStage')
+        if params.get('enableMetadataScrape') is False or params.get('enable_metadata_scrape') is False:
+            disabled.add('ScrapeMetadataStage')
+        if params.get('enableCoverDownload') is False or params.get('enable_cover_download') is False:
+            disabled.add('DownloadCoverStage')
+
+        return [stage for stage in order if stage not in disabled]
 
     @pyqtSlot(dict)
     def start_scan(self, params: dict):
@@ -131,7 +157,7 @@ class Bridge(QObject):
 
         input_path = params.get('input_path', '')
         output_path = params.get('output_path', '')
-        threads = params.get('threads', 4)
+        threads = int(params.get('threads', 4) or 4)
 
         if not input_path or not output_path:
             self.error.emit({'message': '请选择输入和输出目录', 'code': 'INVALID_PATH'})
@@ -143,7 +169,8 @@ class Bridge(QObject):
             config = AppConfig(
                 input_path=Path(input_path),
                 output_path=Path(output_path),
-                threads=threads
+                threads=threads,
+                pipeline_order=self._build_pipeline_order({**self.config_overrides, **params}),
             )
 
             self.log.emit({
@@ -192,7 +219,7 @@ class Bridge(QObject):
     @pyqtSlot(dict)
     def update_config(self, config: dict):
         """更新配置"""
-        # 配置更新逻辑
+        self.config_overrides.update(config or {})
         self.log.emit({
             'message': '⚙️ 配置已更新',
             'level': 'info'
@@ -202,10 +229,9 @@ class Bridge(QObject):
     def cancel_task(self):
         """取消任务"""
         if self.worker and self.processing:
-            self.worker.terminate()
-            self.processing = False
+            self.worker.cancel()
             self.log.emit({
-                'message': '🛑 任务已取消',
+                'message': '🛑 正在取消任务，当前文件结束后停止',
                 'level': 'warning'
             })
 
@@ -261,8 +287,14 @@ class Bridge(QObject):
             # 获取子文件夹
             for item in sorted(base_path.iterdir()):
                 if item.is_dir():
-                    # 统计文件夹中的音乐文件数量
-                    music_count = sum(1 for f in item.rglob('*') if f.is_file() and self._is_music_file(f.name))
+                    # 只统计当前层，避免大型目录或网络共享目录阻塞 GUI 线程
+                    try:
+                        music_count = sum(
+                            1 for f in item.iterdir()
+                            if f.is_file() and self._is_music_file(f.name)
+                        )
+                    except OSError:
+                        music_count = 0
                     result['subfolders'].append({
                         'name': item.name,
                         'path': str(item.absolute()),
@@ -285,63 +317,51 @@ class Bridge(QObject):
         """获取音乐文件详情"""
         try:
             import mutagen
-            from mutagen.id3 import ID3
-            from mutagen.mp3 import MP3
-            from mutagen.flac import FLAC
-            from mutagen.m4a import M4A
-            from mutagen.ogg import Ogg
-            from mutagen.wave import WAVE
-            from mutagen.apev2 import APEv2
 
             file_path = Path(file_path)
             if not file_path.exists():
                 return {}
 
-            # 根据文件类型读取标签
-            ext = file_path.suffix.lower()
             tags = {}
 
             try:
-                if ext == '.mp3':
-                    audio = MP3(str(file_path))
-                elif ext == '.flac':
-                    audio = FLAC(str(file_path))
-                elif ext == '.m4a':
-                    audio = M4A(str(file_path))
-                elif ext == '.ogg':
-                    audio = Ogg(str(file_path))
-                elif ext == '.wav':
-                    audio = WAVE(str(file_path))
-                elif ext == '.ape':
-                    audio = APEv2(str(file_path))
-                else:
+                audio = mutagen.File(str(file_path), easy=True)
+                raw_audio = mutagen.File(str(file_path))
+                if not audio and not raw_audio:
                     return {}
 
-                # 提取常见标签
-                if hasattr(audio, 'tags') and audio.tags:
-                    tag_dict = audio.tags
-                    tags = {
-                        'title': str(tag_dict.get('TIT2', tag_dict.get('title', ''))) if hasattr(tag_dict, 'get') else '',
-                        'artist': str(tag_dict.get('TPE1', tag_dict.get('artist', ''))) if hasattr(tag_dict, 'get') else '',
-                        'album': str(tag_dict.get('TALB', tag_dict.get('album', ''))) if hasattr(tag_dict, 'get') else '',
-                        'year': str(tag_dict.get('TDRC', tag_dict.get('year', tag_dict.get('date', '')))) if hasattr(tag_dict, 'get') else '',
-                        'genre': str(tag_dict.get('TCON', tag_dict.get('genre', ''))) if hasattr(tag_dict, 'get') else '',
-                        'track': str(tag_dict.get('TRCK', tag_dict.get('track', ''))) if hasattr(tag_dict, 'get') else '',
-                    }
-                else:
-                    # 尝试直接访问属性
-                    tags = {
-                        'title': str(getattr(audio, 'title', '')),
-                        'artist': str(getattr(audio, 'artist', '')),
-                        'album': str(getattr(audio, 'album', '')),
-                        'year': str(getattr(audio, 'year', str(getattr(audio, 'date', '')))),
-                        'genre': str(getattr(audio, 'genre', '')),
-                        'track': str(getattr(audio, 'track', '')),
-                    }
+                def stringify(value):
+                    if value is None:
+                        return ''
+                    if isinstance(value, (list, tuple)):
+                        return stringify(value[0]) if value else ''
+                    if hasattr(value, 'text'):
+                        return stringify(value.text)
+                    return str(value)
+
+                def get_tag(*keys):
+                    for source in (getattr(audio, 'tags', None), getattr(raw_audio, 'tags', None)):
+                        if not source or not hasattr(source, 'get'):
+                            continue
+                        for key in keys:
+                            value = source.get(key)
+                            if value:
+                                return stringify(value)
+                    return ''
+
+                tags = {
+                    'title': get_tag('title', 'TITLE', 'TIT2'),
+                    'artist': get_tag('artist', 'ARTIST', 'TPE1'),
+                    'album': get_tag('album', 'ALBUM', 'TALB'),
+                    'year': get_tag('date', 'year', 'DATE', 'TDRC'),
+                    'genre': get_tag('genre', 'GENRE', 'TCON'),
+                    'track': get_tag('tracknumber', 'track', 'TRACKNUMBER', 'TRCK'),
+                }
 
                 # 获取时长
-                if hasattr(audio, 'info') and hasattr(audio.info, 'length'):
-                    duration = int(audio.info.length)
+                source_for_info = raw_audio or audio
+                if hasattr(source_for_info, 'info') and hasattr(source_for_info.info, 'length'):
+                    duration = int(source_for_info.info.length)
                     minutes = duration // 60
                     seconds = duration % 60
                     tags['duration'] = f"{minutes}:{seconds:02d}"
@@ -420,7 +440,12 @@ class Bridge(QObject):
         """完成回调"""
         self.processing = False
 
-        if data.get('success'):
+        if data.get('cancelled'):
+            self.log.emit({
+                'message': '🛑 任务已取消',
+                'level': 'warning'
+            })
+        elif data.get('success'):
             self.log.emit({
                 'message': '✅ 处理完成！',
                 'level': 'success'
@@ -428,7 +453,7 @@ class Bridge(QObject):
 
         self.finished.emit({
             **data,
-            'status': 'completed'
+            'status': 'cancelled' if data.get('cancelled') else 'completed'
         })
 
     def _on_error(self, error_msg: str):
@@ -537,7 +562,7 @@ class MainWindow(QMainWindow):
             "About OpenMusicTag",
             "<h2>OpenMusicTag</h2>"
             "<p>Version 1.0.0</p>"
-            "<p>A music organization tool for NAS</p>"
+            "<p>A general music scraping tool</p>"
             "<p>Author: Kalyter</p>"
         )
 

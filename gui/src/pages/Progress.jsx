@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import useAppStore from '../stores/appStore';
 
 // SVG Icons
@@ -203,11 +203,11 @@ export default function Progress() {
 
   const handleBackToHome = () => {
     resetTask();
-    setCurrentPage('home');
+    setCurrentPage('dashboard');
   };
 
   const handleViewLibrary = () => {
-    setCurrentPage('library');
+    setCurrentPage('files');
   };
 
   const handleTogglePause = () => {
