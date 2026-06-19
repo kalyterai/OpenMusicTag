@@ -9,6 +9,7 @@ import useAppStore from '../stores/appStore';
 // 3) 进入页面不再注入假统计（已移除硬编码 156/142/138/4 的 useEffect）。
 describe('Home 资源库详情 - 真实数据', () => {
   beforeEach(() => {
+    window.localStorage.clear();
     useAppStore.setState({
       totalFiles: 0,
       processedFiles: 0,
@@ -17,6 +18,8 @@ describe('Home 资源库详情 - 真实数据', () => {
       isLoadingFiles: false,
       fileDetailVisible: false,
       selectedFile: null,
+      currentPath: '',
+      commonDirectories: [],
       subFolders: [
         { name: '周杰伦', path: '/music/jay', fileCount: 12 },
       ],
@@ -34,7 +37,7 @@ describe('Home 资源库详情 - 真实数据', () => {
 
   it('子文件夹文件数使用真实 fileCount（非随机数）', () => {
     render(<Home />);
-    expect(screen.getByText(/12\s*个文件/)).toBeInTheDocument();
+    expect(screen.getByText(/12\s*个当前层音乐文件/)).toBeInTheDocument();
   });
 
   it('进入页面不会注入假统计数据', () => {
@@ -42,5 +45,17 @@ describe('Home 资源库详情 - 真实数据', () => {
     // 旧代码会在挂载时把 processedFiles 强制改成 142，修复后应保持为 store 的真实值 0
     expect(useAppStore.getState().processedFiles).toBe(0);
     expect(useAppStore.getState().totalFiles).toBe(0);
+  });
+
+  it('没有上次目录时不默认列出磁盘，而是提示用户选择根目录', () => {
+    useAppStore.setState({
+      currentPath: '',
+      subFolders: [],
+      currentFiles: [],
+      commonDirectories: [],
+    });
+    render(<Home />);
+    expect(screen.getByText('选择一个音乐根目录')).toBeInTheDocument();
+    expect(useAppStore.getState().commonDirectories).toEqual([]);
   });
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import useAppStore, { useStats } from '../stores/appStore';
 import { useQtBridge } from '../bridge';
 import { formatFileSize } from '../utils/format';
@@ -86,7 +86,7 @@ function StatStrip({ totalFiles, processedFiles, successCount, failCount }) {
 }
 
 function FolderRow({ folder, selected, onClick }) {
-  const count = folder.fileCount ?? 0;
+  const count = folder.fileCount ?? -1;
 
   return (
     <button
@@ -112,7 +112,7 @@ function FolderRow({ folder, selected, onClick }) {
       <span style={{ minWidth: 0, flex: 1 }}>
         <span className="truncate-1" style={{ display: 'block', fontWeight: 850, color: 'var(--ink)' }}>{folder.name}</span>
         <span style={{ display: 'block', marginTop: 3, color: 'var(--muted)', fontSize: 12 }}>
-          {count < 0 ? '统计中...' : `${count} 个文件（含子目录音乐）`}
+          {count < 0 ? '文件夹 / 展开查看' : `${count} 个当前层音乐文件`}
         </span>
       </span>
       <Icons.Arrow />
@@ -243,48 +243,37 @@ export default function Home() {
   const { totalFiles, processedFiles, successCount, failCount } = useStats();
   const store = useAppStore();
   const {
-    scanDirectory,
     getMusicFileDetails,
-    getCommonDirectories,
+    selectDirectory,
     callQt,
   } = useQtBridge();
   const [loadingPath, setLoadingPath] = useState(null);
   const [selectedFolder, setSelectedFolder] = useState(null);
-  const [folderCounts, setFolderCounts] = useState({});
+  const restoreRunRef = useRef(false);
+  const lastLibraryPathKey = 'openmusictag:last-library-path';
 
   useEffect(() => {
     if (useAppStore.getState().subFolders.length > 0) return undefined;
+    if (restoreRunRef.current) return undefined;
+    restoreRunRef.current = true;
 
-    let active = true;
-    (async () => {
-      try {
-        const dirs = await getCommonDirectories();
-        if (active) {
-          useAppStore.getState().setCommonDirectories(dirs || []);
-          hydrateFolderCounts((dirs || []).map((path) => ({ path, fileCount: -1 })));
-        }
-      } catch (e) {
-        if (active) useAppStore.getState().setCommonDirectories([]);
-      }
-    })();
-    return () => { active = false; };
-  }, [getCommonDirectories]);
+    const lastPath = window.localStorage?.getItem(lastLibraryPathKey);
+    if (lastPath) {
+      handleFolderClick(lastPath);
+    }
+    return undefined;
+  }, []);
 
   const handleFolderClick = async (path) => {
     setLoadingPath(path);
     setSelectedFolder(path);
     try {
-      let result;
-      try {
-        result = await callQt('scan_directory_lazy', path);
-      } catch (lazyError) {
-        result = await scanDirectory(path);
-      }
+      const result = await callQt('scan_directory_lazy', path);
       store.setCurrentPath(path);
       store.setSubFolders(result?.subfolders || []);
       store.setCurrentFiles(result?.files || []);
       store.closeFileDetail();
-      hydrateFolderCounts(result?.subfolders || []);
+      window.localStorage?.setItem(lastLibraryPathKey, path);
     } catch (e) {
       console.error('扫描文件夹失败:', e);
       store.setSubFolders([]);
@@ -294,16 +283,11 @@ export default function Home() {
     }
   };
 
-  const hydrateFolderCounts = async (folders) => {
-    const pending = folders.filter((folder) => folder?.path && (folder.fileCount == null || folder.fileCount < 0));
-    pending.slice(0, 24).forEach(async (folder) => {
-      try {
-        const count = await callQt('count_folder_files', folder.path);
-        setFolderCounts((prev) => ({ ...prev, [folder.path]: count }));
-      } catch (e) {
-        setFolderCounts((prev) => ({ ...prev, [folder.path]: 0 }));
-      }
-    });
+  const handleChooseRoot = async () => {
+    const selected = await selectDirectory(store.currentPath || selectedFolder || '');
+    if (selected) {
+      handleFolderClick(selected);
+    }
   };
 
   const handleParentClick = () => {
@@ -349,6 +333,21 @@ export default function Home() {
         failCount={failCount}
       />
 
+      {!store.currentPath && store.subFolders.length === 0 && store.currentFiles.length === 0 && (
+        <section className="panel" style={{ padding: 18, marginBottom: 16 }}>
+          <div className="empty-state" style={{ minHeight: 220 }}>
+            <Icons.Folder />
+            <div style={{ marginTop: 10, fontWeight: 850, color: 'var(--ink)' }}>选择一个音乐根目录</div>
+            <div style={{ marginTop: 4, maxWidth: 520, fontSize: 13 }}>
+              资源库不会默认扫描主目录、磁盘或网络卷。选择一个目录后，会记住它，下次进入资源库只恢复这个目录。
+            </div>
+            <button type="button" className="btn btn-primary" style={{ marginTop: 16 }} onClick={handleChooseRoot}>
+              选择文件夹
+            </button>
+          </div>
+        </section>
+      )}
+
       <section className={`library-grid ${store.fileDetailVisible ? 'has-detail' : ''}`}>
         <div className="panel" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <div className="panel-header">
@@ -359,11 +358,15 @@ export default function Home() {
           </div>
           <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--line)' }}>
             <div className="mono truncate-1" style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 8 }}>
-              {store.currentPath || '常用位置'}
+              {store.currentPath || '未选择目录'}
             </div>
-            {store.currentPath && (
+            {store.currentPath ? (
               <button type="button" className="btn btn-secondary" style={{ width: '100%' }} onClick={handleParentClick}>
                 返回上一级
+              </button>
+            ) : (
+              <button type="button" className="btn btn-primary" style={{ width: '100%' }} onClick={handleChooseRoot}>
+                选择文件夹
               </button>
             )}
           </div>
@@ -372,35 +375,16 @@ export default function Home() {
               store.subFolders.map((folder) => (
                 <FolderRow
                   key={folder.path}
-                  folder={{
-                    ...folder,
-                    fileCount: folderCounts[folder.path] ?? folder.fileCount,
-                  }}
+                  folder={folder}
                   selected={selectedFolder === folder.path}
                   onClick={handleFolderClick}
                 />
               ))
             ) : (
-              <>
-                {store.commonDirectories.slice(0, 6).map((path) => (
-                  <FolderRow
-                    key={path}
-                    folder={{
-                      name: path.split(/[\\/]/).filter(Boolean).pop() || path,
-                      path,
-                      fileCount: folderCounts[path] ?? -1,
-                    }}
-                    selected={selectedFolder === path}
-                    onClick={handleFolderClick}
-                  />
-                ))}
-                {store.commonDirectories.length === 0 && (
-                  <div className="empty-state">
-                    <Icons.Folder />
-                    <div style={{ marginTop: 10 }}>还没有目录</div>
-                  </div>
-                )}
-              </>
+              <div className="empty-state">
+                <Icons.Folder />
+                <div style={{ marginTop: 10 }}>{store.currentPath ? '当前目录没有子目录' : '请选择音乐根目录'}</div>
+              </div>
             )}
           </div>
         </div>
