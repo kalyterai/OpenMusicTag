@@ -185,6 +185,9 @@ class DefaultsContractTests(unittest.TestCase):
         self.assertGreater(len(dirs), 0)
         self.assertTrue(all(isinstance(d, str) for d in dirs))
 
+    def test_initial_permission_probe_returns_bool(self):
+        self.assertIsInstance(self.bridge.request_initial_permissions(), bool)
+
 
 class BridgeStorageReadTests(unittest.TestCase):
     """bridge 的持久化读取 slot：注入临时 Storage，避免触碰用户目录。"""
@@ -268,6 +271,7 @@ class WebChannelTypeSafetyTests(unittest.TestCase):
             "get_recent_tasks": "QVariantList",
             "get_daily_activity": "QVariantList",
             "get_common_directories": "QVariantList",
+            "request_initial_permissions": "bool",
             "list_artist_aliases": "QVariantList",
             "list_cleanup_rules": "QVariantList",
         }

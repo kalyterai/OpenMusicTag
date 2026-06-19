@@ -569,6 +569,48 @@ class Bridge(QObject):
 
         return directories
 
+    def _permission_probe_directories(self) -> list:
+        """启动时轻量探测的目录。
+
+        这里故意不递归、不统计文件数，只触发系统对常用受保护目录的访问授权。
+        """
+        import platform
+        system = platform.system()
+        if system == 'Darwin':
+            return [
+                str(Path.home() / 'Desktop'),
+                str(Path.home() / 'Documents'),
+                str(Path.home() / 'Downloads'),
+                str(Path.home() / 'Music'),
+                '/Volumes',
+            ]
+        return self.get_common_directories()
+
+    @pyqtSlot(result=bool)
+    def request_initial_permissions(self) -> bool:
+        """启动阶段集中请求/预热常用目录访问权限。"""
+        ok = True
+        for raw in self._permission_probe_directories():
+            try:
+                path = Path(raw)
+                if not path.exists() or not path.is_dir():
+                    continue
+                # 只读取当前层的第一个条目，不递归，不做耗时统计。
+                next(path.iterdir(), None)
+            except PermissionError:
+                ok = False
+                self.log.emit({
+                    'message': f'需要授权访问目录: {raw}',
+                    'level': 'warning',
+                })
+            except OSError:
+                # 网络卷、外置卷可能暂不可达；不要阻塞启动。
+                continue
+            except Exception as e:
+                ok = False
+                print(f"[WARN] 启动权限预热失败: {raw}: {e}")
+        return ok
+
     @pyqtSlot(result=list)
     def list_artist_aliases(self) -> list:
         try:
@@ -736,6 +778,9 @@ class MainWindow(QMainWindow):
 
         # 创建 macOS 应用菜单
         self._create_macos_menu()
+
+        # 启动后集中触发常用目录访问授权，避免首次打开资源库时才逐个弹窗。
+        QTimer.singleShot(1200, self.bridge.request_initial_permissions)
 
     def set_icon(self):
         """设置窗口图标"""

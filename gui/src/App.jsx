@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Home from './pages/Home';
@@ -7,6 +7,7 @@ import Progress from './pages/Progress';
 import Dictionary from './pages/Dictionary';
 import Settings from './pages/Settings';
 import useAppStore from './stores/appStore';
+import { useQtBridge } from './bridge';
 
 // 页面组件映射
 const pages = {
@@ -21,7 +22,12 @@ const pages = {
 
 export default function App() {
   const { currentPage } = useAppStore();
+  const { callQt } = useQtBridge();
   const PageComponent = pages[currentPage] || pages.dashboard;
+
+  useEffect(() => {
+    callQt('request_initial_permissions').catch(() => {});
+  }, [callQt]);
 
   return (
     <Layout>

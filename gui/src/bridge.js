@@ -47,6 +47,9 @@ function getMockResult(method, args) {
   if (method === 'get_common_directories') {
     return ['/Users', '/Documents', '/Music', '/Downloads'];
   }
+  if (method === 'request_initial_permissions') {
+    return true;
+  }
   if (method === 'get_dashboard_stats') {
     return {
       total_songs: 0, success: 0, failed: 0, success_rate: 0,
