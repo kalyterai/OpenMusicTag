@@ -79,6 +79,8 @@ export default function Sidebar() {
         alignItems: 'center',
         justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
         padding: sidebarCollapsed ? '0' : '0 16px',
+        // macOS 无原生标题栏后，为左上角红绿灯按钮预留顶部空间
+        paddingTop: '28px',
         gap: '10px',
       }}>
         <img
