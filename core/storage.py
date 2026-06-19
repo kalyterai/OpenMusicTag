@@ -1,15 +1,22 @@
 # -*- coding: utf-8 -*-
 """SQLite 持久化层。
 
-存储「任务历史」与「单曲处理结果」，为 Dashboard / History 等页面提供真实数据。
+存储「任务历史」与「单曲处理结果」，为 Dashboard / 详情页 等页面提供真实数据。
 实时运行态（进度/日志）仍走内存与信号，不进数据库。
 
 设计要点：
 - 单文件嵌入式数据库，零配置；位置在系统应用数据目录。
 - WAL 模式 + 一把写锁，兼容「多线程处理 + 单线程汇总写入 + GUI 线程读取」。
 - 写入点天然单线程（pipeline 的结果在 as_completed 主循环串行汇总）。
+- 不使用外键约束（仅靠 task_id 逻辑关联），避免约束带来的写入/删除耦合。
+- 每张表都带 gmt_create / gmt_modified 两个业务无关的审计字段：
+  gmt_create 插入时落库，gmt_modified 由触发器在每次 UPDATE 时自动刷新。
+
+注意：SQLite 不支持 MySQL 的 `列 COMMENT '...'` 语法，列说明只能用 -- 行注释；
+gmt_modified 的「自动更新」也无 ON UPDATE 语法，需用 TRIGGER 实现。
 """
 
+import json
 import os
 import platform
 import sqlite3
@@ -20,6 +27,9 @@ from typing import Any, Dict, List, Optional
 
 
 APP_NAME = "OpenMusicTag"
+
+# 统一的本地时间表达式（ISO 'T' 格式，与 _now() 保持一致），用于 DEFAULT 与触发器
+_TS_SQL = "strftime('%Y-%m-%dT%H:%M:%S','now','localtime')"
 
 
 def default_data_dir() -> Path:
@@ -44,40 +54,63 @@ def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
-_SCHEMA = """
+# 说明：SQLite 无 COMMENT 语法，下面统一用 -- 注释描述每一列的业务含义。
+_SCHEMA = f"""
+-- 任务表：每一次「刮削/整理」批处理的汇总记录
 CREATE TABLE IF NOT EXISTS tasks (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    input_path  TEXT NOT NULL,
-    output_path TEXT NOT NULL,
-    threads     INTEGER,
-    status      TEXT NOT NULL DEFAULT 'running',
-    total       INTEGER DEFAULT 0,
-    success     INTEGER DEFAULT 0,
-    skipped     INTEGER DEFAULT 0,
-    failed      INTEGER DEFAULT 0,
-    bytes       INTEGER DEFAULT 0,
-    started_at  TEXT NOT NULL,
-    finished_at TEXT,
-    duration_ms INTEGER
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,        -- 任务自增主键
+    input_path   TEXT NOT NULL,                            -- 输入目录（可能是远端/网络路径）
+    output_path  TEXT NOT NULL,                            -- 输出目录
+    threads      INTEGER,                                  -- 并发线程数
+    status       TEXT NOT NULL DEFAULT 'running',          -- 状态: running/completed/cancelled
+    total        INTEGER DEFAULT 0,                        -- 扫描到的文件总数
+    success      INTEGER DEFAULT 0,                        -- 成功处理数
+    skipped      INTEGER DEFAULT 0,                        -- 跳过数（重复等）
+    failed       INTEGER DEFAULT 0,                        -- 失败数
+    bytes        INTEGER DEFAULT 0,                        -- 成功输出的总字节数
+    started_at   TEXT NOT NULL,                            -- 业务：任务开始时间
+    finished_at  TEXT,                                     -- 业务：任务结束时间
+    duration_ms  INTEGER,                                  -- 业务：耗时（毫秒）
+    gmt_create   TEXT NOT NULL DEFAULT ({_TS_SQL}),        -- 审计：记录创建时间（自动）
+    gmt_modified TEXT NOT NULL DEFAULT ({_TS_SQL})         -- 审计：记录最后更新时间（触发器自动刷新）
 );
 
+-- 单曲表：每个音乐文件的处理结果与元数据快照
 CREATE TABLE IF NOT EXISTS songs (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    task_id     INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-    source_path TEXT,
-    output_path TEXT,
-    status      TEXT NOT NULL,
-    artist      TEXT,
-    album       TEXT,
-    title       TEXT,
-    bytes       INTEGER DEFAULT 0,
-    created_at  TEXT NOT NULL
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,        -- 单曲自增主键
+    task_id      INTEGER NOT NULL,                         -- 所属任务 id（逻辑关联，无外键约束）
+    source_path  TEXT,                                     -- 源文件路径
+    output_path  TEXT,                                     -- 输出文件路径
+    status       TEXT NOT NULL,                            -- 结果: success/skipped/failed
+    artist       TEXT,                                     -- 歌手（冗余，便于检索/排序）
+    album        TEXT,                                     -- 专辑（冗余）
+    title        TEXT,                                     -- 标题（冗余）
+    tags         TEXT,                                     -- 完整标签元数据（JSON 字符串）
+    bytes        INTEGER DEFAULT 0,                        -- 输出文件大小（字节）
+    created_at   TEXT NOT NULL,                            -- 业务：处理完成时间
+    gmt_create   TEXT NOT NULL DEFAULT ({_TS_SQL}),        -- 审计：记录创建时间（自动）
+    gmt_modified TEXT NOT NULL DEFAULT ({_TS_SQL})         -- 审计：记录最后更新时间（触发器自动刷新）
 );
 
-CREATE INDEX IF NOT EXISTS idx_songs_task   ON songs(task_id);
-CREATE INDEX IF NOT EXISTS idx_songs_artist ON songs(artist);
-CREATE INDEX IF NOT EXISTS idx_songs_status ON songs(status);
+CREATE INDEX IF NOT EXISTS idx_songs_task    ON songs(task_id);
+CREATE INDEX IF NOT EXISTS idx_songs_artist  ON songs(artist);
+CREATE INDEX IF NOT EXISTS idx_songs_status  ON songs(status);
+CREATE INDEX IF NOT EXISTS idx_songs_created ON songs(created_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_started ON tasks(started_at);
+
+-- gmt_modified 自动刷新触发器（SQLite 无 ON UPDATE，靠 AFTER UPDATE 实现）
+-- 默认 recursive_triggers=OFF，内部 UPDATE 不会再次触发本触发器，无递归。
+CREATE TRIGGER IF NOT EXISTS trg_tasks_modified
+AFTER UPDATE ON tasks FOR EACH ROW
+BEGIN
+    UPDATE tasks SET gmt_modified = {_TS_SQL} WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_songs_modified
+AFTER UPDATE ON songs FOR EACH ROW
+BEGIN
+    UPDATE songs SET gmt_modified = {_TS_SQL} WHERE id = OLD.id;
+END;
 """
 
 
@@ -93,26 +126,77 @@ class Storage:
         self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA foreign_keys=ON")
         self._init_schema()
+        self._migrate()
 
     def _init_schema(self) -> None:
         with self._lock:
             self._conn.executescript(_SCHEMA)
             self._conn.commit()
 
+    def _migrate(self) -> None:
+        """为升级前已存在的旧库补齐新增列并回填审计字段。"""
+        with self._lock:
+            def cols(table: str) -> set:
+                rows = self._conn.execute(f"PRAGMA table_info({table})").fetchall()
+                return {r["name"] for r in rows}
+
+            task_cols = cols("tasks")
+            song_cols = cols("songs")
+
+            # ALTER ADD COLUMN 不允许函数默认值，新列先为 NULL，随后回填
+            for table, existing in (("tasks", task_cols), ("songs", song_cols)):
+                if not existing:
+                    continue
+                for col in ("gmt_create", "gmt_modified"):
+                    if col not in existing:
+                        self._conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} TEXT")
+            if song_cols and "tags" not in song_cols:
+                self._conn.execute("ALTER TABLE songs ADD COLUMN tags TEXT")
+
+            # 回填旧数据的审计字段（用业务时间近似）
+            self._conn.execute(
+                "UPDATE tasks SET gmt_create = COALESCE(gmt_create, started_at),"
+                " gmt_modified = COALESCE(gmt_modified, finished_at, started_at)"
+                " WHERE gmt_create IS NULL OR gmt_modified IS NULL"
+            )
+            self._conn.execute(
+                "UPDATE songs SET gmt_create = COALESCE(gmt_create, created_at),"
+                " gmt_modified = COALESCE(gmt_modified, created_at)"
+                " WHERE gmt_create IS NULL OR gmt_modified IS NULL"
+            )
+            self._conn.commit()
+
     def close(self) -> None:
         with self._lock:
             self._conn.close()
 
+    # ========== 工具 ==========
+
+    @staticmethod
+    def _row_to_song(row: sqlite3.Row) -> Dict[str, Any]:
+        """行转 dict，并把 tags JSON 字符串解析成对象。"""
+        d = dict(row)
+        raw = d.get("tags")
+        if raw:
+            try:
+                d["tags"] = json.loads(raw)
+            except (ValueError, TypeError):
+                d["tags"] = {}
+        else:
+            d["tags"] = {}
+        return d
+
     # ========== 写入 ==========
 
     def create_task(self, input_path: str, output_path: str, threads: int = 4) -> int:
+        ts = _now()
         with self._lock:
             cur = self._conn.execute(
-                "INSERT INTO tasks (input_path, output_path, threads, status, started_at)"
-                " VALUES (?, ?, ?, 'running', ?)",
-                (str(input_path), str(output_path), int(threads), _now()),
+                "INSERT INTO tasks (input_path, output_path, threads, status,"
+                " started_at, gmt_create, gmt_modified)"
+                " VALUES (?, ?, ?, 'running', ?, ?, ?)",
+                (str(input_path), str(output_path), int(threads), ts, ts, ts),
             )
             self._conn.commit()
             return cur.lastrowid
@@ -126,15 +210,19 @@ class Storage:
         artist: str = "",
         album: str = "",
         title: str = "",
+        tags: Optional[Dict[str, Any]] = None,
         size_bytes: int = 0,
     ) -> int:
+        tags_json = json.dumps(tags, ensure_ascii=False) if tags else None
+        ts = _now()
         with self._lock:
             cur = self._conn.execute(
                 "INSERT INTO songs (task_id, source_path, output_path, status, artist,"
-                " album, title, bytes, created_at)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " album, title, tags, bytes, created_at, gmt_create, gmt_modified)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (task_id, str(source_path), str(output_path), status, artist or "",
-                 album or "", title or "", int(size_bytes or 0), _now()),
+                 album or "", title or "", tags_json, int(size_bytes or 0),
+                 ts, ts, ts),
             )
             self._conn.commit()
             return cur.lastrowid
@@ -150,6 +238,7 @@ class Storage:
         size_bytes: int = 0,
         duration_ms: int = 0,
     ) -> None:
+        # gmt_modified 由触发器自动刷新，这里不手动设置
         with self._lock:
             self._conn.execute(
                 "UPDATE tasks SET status=?, total=?, success=?, skipped=?, failed=?,"
@@ -168,13 +257,56 @@ class Storage:
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_task_songs(self, task_id: int, limit: int = 500) -> List[Dict[str, Any]]:
+    def get_task_songs(
+        self, task_id: int, limit: int = 50, offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """分页获取某任务的单曲（默认每页 50，支持远端慢加载场景的增量拉取）。"""
         with self._lock:
             rows = self._conn.execute(
-                "SELECT * FROM songs WHERE task_id=? ORDER BY id DESC LIMIT ?",
-                (int(task_id), int(limit)),
+                "SELECT * FROM songs WHERE task_id=? ORDER BY id DESC LIMIT ? OFFSET ?",
+                (int(task_id), int(limit), int(offset)),
             ).fetchall()
-        return [dict(r) for r in rows]
+        return [self._row_to_song(r) for r in rows]
+
+    def count_task_songs(self, task_id: int) -> int:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT COUNT(*) AS c FROM songs WHERE task_id=?", (int(task_id),)
+            ).fetchone()
+        return row["c"] if row else 0
+
+    def get_songs(
+        self, limit: int = 20, offset: int = 0, status: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """全局分页获取单曲（可按 status 过滤），用于资源库/歌曲列表的增量加载。"""
+        sql = "SELECT * FROM songs"
+        params: List[Any] = []
+        if status:
+            sql += " WHERE status=?"
+            params.append(status)
+        sql += " ORDER BY id DESC LIMIT ? OFFSET ?"
+        params.extend([int(limit), int(offset)])
+        with self._lock:
+            rows = self._conn.execute(sql, tuple(params)).fetchall()
+        return [self._row_to_song(r) for r in rows]
+
+    def count_songs(self, status: Optional[str] = None) -> int:
+        sql = "SELECT COUNT(*) AS c FROM songs"
+        params: List[Any] = []
+        if status:
+            sql += " WHERE status=?"
+            params.append(status)
+        with self._lock:
+            row = self._conn.execute(sql, tuple(params)).fetchone()
+        return row["c"] if row else 0
+
+    def get_song(self, song_id: int) -> Optional[Dict[str, Any]]:
+        """获取单曲完整详情（含解析后的 tags 元数据），用于歌曲详情页。"""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM songs WHERE id=?", (int(song_id),)
+            ).fetchone()
+        return self._row_to_song(row) if row else None
 
     def get_dashboard_stats(self) -> Dict[str, Any]:
         with self._lock:

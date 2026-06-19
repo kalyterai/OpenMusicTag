@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """SQLite 持久化层（core.storage.Storage）测试，使用临时数据库，不触碰用户目录。"""
 
+import sqlite3
 import tempfile
+import time
 import unittest
 from datetime import datetime
 from pathlib import Path
@@ -90,6 +92,125 @@ class StorageTaskSongTests(unittest.TestCase):
         recent = self.storage.get_recent_tasks(10)
         self.assertEqual(recent[0]["input_path"], "/in/2")
         self.assertEqual(recent[-1]["input_path"], "/in/0")
+
+
+class StorageTagsAndDetailTests(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.storage = Storage(Path(self._tmp.name) / "test.db")
+
+    def tearDown(self):
+        self.storage.close()
+        self._tmp.cleanup()
+
+    def test_tags_round_trip_as_dict(self):
+        task_id = self.storage.create_task("/in", "/out")
+        meta = {"title": "晴天", "artist": "周杰伦", "year": "2003",
+                "genre": "Pop", "track": "9"}
+        sid = self.storage.add_song(task_id, "success", source_path="/in/a.mp3",
+                                    title="晴天", artist="周杰伦", tags=meta)
+        song = self.storage.get_song(sid)
+        self.assertIsNotNone(song)
+        self.assertEqual(song["tags"], meta)
+        self.assertEqual(song["tags"]["year"], "2003")
+
+    def test_empty_tags_parsed_as_empty_dict(self):
+        task_id = self.storage.create_task("/in", "/out")
+        sid = self.storage.add_song(task_id, "failed", source_path="/in/b.mp3")
+        song = self.storage.get_song(sid)
+        self.assertEqual(song["tags"], {})
+
+    def test_get_song_missing_returns_none(self):
+        self.assertIsNone(self.storage.get_song(99999))
+
+    def test_pagination_offset_and_count(self):
+        task_id = self.storage.create_task("/in", "/out")
+        for i in range(5):
+            self.storage.add_song(task_id, "success", source_path=f"/in/{i}.mp3")
+        self.assertEqual(self.storage.count_task_songs(task_id), 5)
+        page1 = self.storage.get_task_songs(task_id, limit=2, offset=0)
+        page2 = self.storage.get_task_songs(task_id, limit=2, offset=2)
+        self.assertEqual(len(page1), 2)
+        self.assertEqual(len(page2), 2)
+        # 无重叠（按 id DESC，page1 应是最新两条）
+        self.assertNotEqual(page1[0]["id"], page2[0]["id"])
+
+    def test_get_songs_filter_by_status(self):
+        task_id = self.storage.create_task("/in", "/out")
+        self.storage.add_song(task_id, "success")
+        self.storage.add_song(task_id, "success")
+        self.storage.add_song(task_id, "failed")
+        self.assertEqual(self.storage.count_songs(), 3)
+        self.assertEqual(self.storage.count_songs(status="success"), 2)
+        self.assertEqual(len(self.storage.get_songs(status="failed")), 1)
+
+
+class StorageAuditFieldsTests(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.storage = Storage(Path(self._tmp.name) / "test.db")
+
+    def tearDown(self):
+        self.storage.close()
+        self._tmp.cleanup()
+
+    def test_gmt_create_set_on_insert(self):
+        task_id = self.storage.create_task("/in", "/out")
+        task = self.storage.get_recent_tasks(1)[0]
+        self.assertTrue(task["gmt_create"])
+        self.assertTrue(task["gmt_modified"])
+
+    def test_gmt_modified_bumped_by_trigger_on_update(self):
+        task_id = self.storage.create_task("/in", "/out")
+        before = self.storage.get_recent_tasks(1)[0]["gmt_modified"]
+        time.sleep(1.1)  # ISO 精确到秒，需跨秒才能观测变化
+        self.storage.finish_task(task_id, "completed", total=1, success=1)
+        after = self.storage.get_recent_tasks(1)[0]["gmt_modified"]
+        self.assertGreater(after, before)
+
+
+class StorageMigrationTests(unittest.TestCase):
+    """旧库（无 gmt_* / tags、带外键）升级后应被平滑迁移。"""
+
+    def test_migrates_legacy_schema(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "legacy.db"
+            # 构造旧版表结构
+            conn = sqlite3.connect(db)
+            conn.executescript(
+                "CREATE TABLE tasks (id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                " input_path TEXT NOT NULL, output_path TEXT NOT NULL, threads INTEGER,"
+                " status TEXT, total INTEGER, success INTEGER, skipped INTEGER,"
+                " failed INTEGER, bytes INTEGER, started_at TEXT, finished_at TEXT,"
+                " duration_ms INTEGER);"
+                "CREATE TABLE songs (id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                " task_id INTEGER NOT NULL, source_path TEXT, output_path TEXT,"
+                " status TEXT, artist TEXT, album TEXT, title TEXT, bytes INTEGER,"
+                " created_at TEXT);"
+            )
+            conn.execute(
+                "INSERT INTO tasks (input_path, output_path, status, started_at)"
+                " VALUES ('/in', '/out', 'completed', '2026-06-01T10:00:00')"
+            )
+            conn.execute(
+                "INSERT INTO songs (task_id, status, created_at)"
+                " VALUES (1, 'success', '2026-06-01T10:00:05')"
+            )
+            conn.commit()
+            conn.close()
+
+            # 用新版 Storage 打开，应自动迁移
+            storage = Storage(db)
+            task = storage.get_recent_tasks(1)[0]
+            # 新列存在且旧行被回填
+            self.assertEqual(task["gmt_create"], "2026-06-01T10:00:00")
+            song = storage.get_task_songs(1)[0]
+            self.assertEqual(song["gmt_create"], "2026-06-01T10:00:05")
+            self.assertEqual(song["tags"], {})
+            # 迁移后仍可正常写入带 tags 的新数据
+            sid = storage.add_song(1, "success", tags={"title": "x"})
+            self.assertEqual(storage.get_song(sid)["tags"], {"title": "x"})
+            storage.close()
 
 
 class StorageLocationTests(unittest.TestCase):

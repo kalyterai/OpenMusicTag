@@ -224,11 +224,12 @@ class PipelineIntegrationTests(unittest.TestCase):
 
             pipeline = MusicOrganizerPipeline(config)
             with contextlib.redirect_stdout(io.StringIO()):
-                result_path, skipped = pipeline.process_file(source_path)
+                result_path, skipped, metadata = pipeline.process_file(source_path)
 
             expected_path = output_path / "input" / "测试歌手 - 测试歌曲.wav"
             self.assertFalse(skipped)
             self.assertEqual(result_path, expected_path)
+            self.assertIsInstance(metadata, dict)
             self.assertTrue(expected_path.exists())
 
             written = WAVE(expected_path)
@@ -272,6 +273,8 @@ class PipelinePersistenceTests(unittest.TestCase):
             songs = storage.get_task_songs(tasks[0]["id"])
             self.assertEqual(len(songs), 1)
             self.assertEqual(songs[0]["status"], "success")
+            # tags 应被解析为 dict（即便为空也不是字符串）
+            self.assertIsInstance(songs[0]["tags"], dict)
             storage.close()
 
 

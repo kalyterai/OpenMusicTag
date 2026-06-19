@@ -103,8 +103,12 @@ class MusicOrganizerPipeline:
             secs = int(seconds % 60)
             return f"{hours}小时{minutes}分{secs}秒"
 
-    def process_file(self, file_path: Path) -> Tuple[Optional[Path], bool]:
-        """处理单个文件（每次调用创建新的 context，确保线程安全）"""
+    def process_file(self, file_path: Path) -> Tuple[Optional[Path], bool, dict]:
+        """处理单个文件（每次调用创建新的 context，确保线程安全）
+
+        返回 ``(output_path, skipped, metadata)``：metadata 为最终标签元数据，
+        供持久化为 songs.tags（JSON）与详情页展示。
+        """
         context = PipelineContext(self.config, self.cancel_event)
         audio_file = AudioFile(path=file_path, ext=file_path.suffix.lower())
 
@@ -118,7 +122,7 @@ class MusicOrganizerPipeline:
                 print(f"\n  ✗ {stage.NAME} 阶段出错: {file_path.name}")
                 traceback.print_exc()
                 context.stop()
-                return None, False
+                return None, False, {}
 
             # 检查是否需要跳过（通过 context.breakout 控制）
             if context.should_continue():
@@ -127,11 +131,11 @@ class MusicOrganizerPipeline:
             # 跳过后续阶段
             break
 
-        # 如果被跳过，返回 (None, True)
+        # 如果被跳过，返回 (None, True, {})
         if not context.should_continue():
-            return None, True
+            return None, True, {}
 
-        return audio_file.output_path, False
+        return audio_file.output_path, False, dict(audio_file.final_metadata or {})
 
     @staticmethod
     def _file_size(path: Path) -> int:
@@ -141,7 +145,7 @@ class MusicOrganizerPipeline:
             return 0
 
     def _record_song(self, task_id, status, source_path, output_path=None,
-                     info=None, size=0) -> None:
+                     info=None, tags=None, size=0) -> None:
         """把单曲结果写入持久化层（无 storage / 无 task 时静默跳过）。"""
         if not self.storage or not task_id:
             return
@@ -154,6 +158,7 @@ class MusicOrganizerPipeline:
                 artist=info.get("artist", ""),
                 album=info.get("album", ""),
                 title=info.get("title", ""),
+                tags=tags or None,
                 size_bytes=size,
             )
         except Exception:
@@ -212,7 +217,7 @@ class MusicOrganizerPipeline:
 
                 file_path = futures[future]
                 try:
-                    output_path, skipped_file = future.result()
+                    output_path, skipped_file, metadata = future.result()
                     if skipped_file:
                         skipped += 1
                         self._record_song(task_id, 'skipped', file_path)
@@ -229,7 +234,7 @@ class MusicOrganizerPipeline:
                         total_bytes += size
                         self._record_song(task_id, 'success', file_path,
                                           output_path=output_path, info=file_info,
-                                          size=size)
+                                          tags=metadata, size=size)
                         self.on_success(file_info)
                     else:
                         failed += 1

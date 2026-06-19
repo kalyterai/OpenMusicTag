@@ -310,6 +310,99 @@ class Bridge(QObject):
             print(f"[ERROR] 读取活跃度失败: {e}")
             return []
 
+    @pyqtSlot(int, int, str, result=list)
+    def get_songs(self, limit: int = 20, offset: int = 0, status: str = "") -> list:
+        """分页获取已处理的歌曲（增量加载，可按状态过滤）。"""
+        try:
+            return self.storage.get_songs(limit or 20, offset or 0, status or None)
+        except Exception as e:
+            print(f"[ERROR] 读取歌曲列表失败: {e}")
+            return []
+
+    @pyqtSlot(str, result=int)
+    def count_songs(self, status: str = "") -> int:
+        """已处理歌曲总数（供分页计算）。"""
+        try:
+            return self.storage.count_songs(status or None)
+        except Exception as e:
+            print(f"[ERROR] 统计歌曲数失败: {e}")
+            return 0
+
+    @pyqtSlot(int, int, int, result=list)
+    def get_task_songs(self, task_id: int, limit: int = 50, offset: int = 0) -> list:
+        """分页获取某任务下的歌曲。"""
+        try:
+            return self.storage.get_task_songs(task_id, limit or 50, offset or 0)
+        except Exception as e:
+            print(f"[ERROR] 读取任务歌曲失败: {e}")
+            return []
+
+    @pyqtSlot(int, result=int)
+    def count_task_songs(self, task_id: int) -> int:
+        try:
+            return self.storage.count_task_songs(task_id)
+        except Exception as e:
+            print(f"[ERROR] 统计任务歌曲数失败: {e}")
+            return 0
+
+    @pyqtSlot(int, result='QVariantMap')
+    def get_song(self, song_id: int) -> dict:
+        """获取单曲完整详情（含解析后的标签元数据），用于歌曲详情页。"""
+        try:
+            song = self.storage.get_song(song_id)
+            return song or {}
+        except Exception as e:
+            print(f"[ERROR] 读取歌曲详情失败: {e}")
+            return {}
+
+    @pyqtSlot(str, result='QVariantMap')
+    def scan_directory_lazy(self, path: str) -> dict:
+        """快速列目录：只返回子目录/文件名，不做每个子目录的歌曲计数。
+
+        远端/网络目录下，逐个子目录 iterdir 计数会阻塞 GUI 线程；这里把计数
+        延后到前端按需调用 ``count_folder_files``（一次只统计可见的几个）。
+        子目录的 ``fileCount`` 以 -1 表示「尚未统计」。
+        """
+        try:
+            base_path = Path(path)
+            result = {'subfolders': [], 'files': []}
+            if not base_path.exists():
+                return result
+            for item in sorted(base_path.iterdir()):
+                if item.is_dir():
+                    result['subfolders'].append({
+                        'name': item.name,
+                        'path': str(item.absolute()),
+                        'fileCount': -1,  # 未统计，前端按需懒加载
+                    })
+                elif item.is_file() and self._is_music_file(item.name):
+                    result['files'].append({
+                        'name': item.name,
+                        'path': str(item.absolute()),
+                        'ext': item.suffix.lower(),
+                    })
+            return result
+        except Exception as e:
+            print(f"[ERROR] 懒扫描目录失败: {e}")
+            return {'subfolders': [], 'files': []}
+
+    @pyqtSlot(str, result=int)
+    def count_folder_files(self, path: str) -> int:
+        """统计单个目录下的音乐文件数（前端对可见目录按需调用）。"""
+        try:
+            folder = Path(path)
+            if not folder.is_dir():
+                return 0
+            return sum(
+                1 for f in folder.iterdir()
+                if f.is_file() and self._is_music_file(f.name)
+            )
+        except OSError:
+            return 0
+        except Exception as e:
+            print(f"[ERROR] 统计目录文件数失败: {e}")
+            return 0
+
     @pyqtSlot(str, result='QVariantMap')
     def scan_directory(self, path: str) -> dict:
         """扫描目录获取文件夹和文件列表"""
