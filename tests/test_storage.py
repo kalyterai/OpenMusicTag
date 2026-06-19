@@ -102,6 +102,13 @@ class StorageTaskSongTests(unittest.TestCase):
         self.assertEqual(task["execution_config"]["enableMetadataScrape"], False)
         self.assertEqual(task["execution_config"]["threads"], 6)
 
+    def test_app_setting_round_trip(self):
+        self.assertEqual(self.storage.get_setting("last_library_path", ""), "")
+        self.storage.set_setting("last_library_path", "/music")
+        self.assertEqual(self.storage.get_setting("last_library_path", ""), "/music")
+        self.storage.set_setting("last_library_path", "/music/new")
+        self.assertEqual(self.storage.get_setting("last_library_path", ""), "/music/new")
+
     def test_dictionary_defaults_and_add_rule(self):
         aliases = self.storage.list_artist_aliases()
         rules = self.storage.list_cleanup_rules()

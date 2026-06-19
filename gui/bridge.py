@@ -281,6 +281,25 @@ class Bridge(QObject):
         """获取用户主目录"""
         return str(Path.home())
 
+    @pyqtSlot(result=str)
+    def get_last_library_path(self) -> str:
+        """获取上次打开的资源库目录。"""
+        try:
+            return self.storage.get_setting("last_library_path", "")
+        except Exception as e:
+            print(f"[ERROR] 读取上次资源库目录失败: {e}")
+            return ""
+
+    @pyqtSlot(str, result=bool)
+    def set_last_library_path(self, path: str) -> bool:
+        """保存上次打开的资源库目录。"""
+        try:
+            self.storage.set_setting("last_library_path", path or "")
+            return True
+        except Exception as e:
+            print(f"[ERROR] 保存上次资源库目录失败: {e}")
+            return False
+
     @pyqtSlot(result='QVariantMap')
     def get_default_config(self) -> dict:
         """获取默认配置"""
@@ -384,9 +403,11 @@ class Bridge(QObject):
         """
         try:
             base_path = Path(path)
-            result = {'subfolders': [], 'files': []}
+            result = {'subfolders': [], 'files': [], 'exists': False, 'path': str(base_path)}
             if not base_path.exists():
                 return result
+            result['exists'] = True
+            result['path'] = str(base_path.absolute())
             for item in sorted(base_path.iterdir()):
                 if item.is_dir():
                     result['subfolders'].append({
@@ -403,7 +424,7 @@ class Bridge(QObject):
             return result
         except Exception as e:
             print(f"[ERROR] 懒扫描目录失败: {e}")
-            return {'subfolders': [], 'files': []}
+            return {'subfolders': [], 'files': [], 'exists': False, 'path': path}
 
     @pyqtSlot(str, result=int)
     def count_folder_files(self, path: str) -> int:

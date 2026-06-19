@@ -63,48 +63,15 @@ function metadataScore(file) {
   return Math.round((filled / fields.length) * 100);
 }
 
-function FolderRow({ folder, selected, onClick }) {
-  const count = folder.fileCount ?? -1;
+function LibraryItemRow({ item, selected, onOpenFolder, onOpenFile }) {
+  const isFolder = item.kind === 'folder';
+  const ext = item.ext || '';
+  const count = item.fileCount ?? -1;
 
   return (
     <button
       type="button"
-      onClick={() => onClick(folder.path)}
-      className="panel"
-      style={{
-        width: '100%',
-        padding: 12,
-        boxShadow: 'none',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        textAlign: 'left',
-        cursor: 'pointer',
-        background: selected ? 'var(--groove-soft)' : 'var(--panel)',
-        borderColor: selected ? 'rgba(31, 95, 99, 0.38)' : 'var(--line)',
-      }}
-    >
-      <span className="chip chip-amber" style={{ width: 34, height: 34, padding: 0, justifyContent: 'center' }}>
-        <Icons.Folder />
-      </span>
-      <span style={{ minWidth: 0, flex: 1 }}>
-        <span className="truncate-1" style={{ display: 'block', fontWeight: 850, color: 'var(--ink)' }}>{folder.name}</span>
-        <span style={{ display: 'block', marginTop: 3, color: 'var(--muted)', fontSize: 12 }}>
-          {count < 0 ? '文件夹 / 展开查看' : `${count} 个当前层音乐文件`}
-        </span>
-      </span>
-      <Icons.Arrow />
-    </button>
-  );
-}
-
-function FileRow({ file, selected, onClick }) {
-  const ext = file.ext || '';
-
-  return (
-    <button
-      type="button"
-      onClick={() => onClick(file)}
+      onClick={() => (isFolder ? onOpenFolder(item.path) : onOpenFile(item))}
       className="panel"
       style={{
         width: '100%',
@@ -112,25 +79,28 @@ function FileRow({ file, selected, onClick }) {
         boxShadow: 'none',
         display: 'grid',
         gridTemplateColumns: '34px minmax(0, 1fr) auto',
-        gap: 12,
         alignItems: 'center',
+        gap: 12,
         textAlign: 'left',
         cursor: 'pointer',
         background: selected ? 'var(--groove-soft)' : 'var(--panel)',
         borderColor: selected ? 'rgba(31, 95, 99, 0.38)' : 'var(--line)',
       }}
     >
-      <span className={`chip ${extTone(ext)}`} style={{ width: 34, height: 34, padding: 0, justifyContent: 'center' }}>
-        <Icons.Music />
+      <span className={`chip ${isFolder ? 'chip-amber' : extTone(ext)}`} style={{ width: 34, height: 34, padding: 0, justifyContent: 'center' }}>
+        {isFolder ? <Icons.Folder /> : <Icons.Music />}
       </span>
       <span style={{ minWidth: 0 }}>
-        <span className="truncate-1" style={{ display: 'block', fontWeight: 850, color: 'var(--ink)' }}>{file.name}</span>
-        <span className="truncate-1" style={{ display: 'block', marginTop: 3, color: 'var(--muted)', fontSize: 12 }}>
-          {file.artist || '未知艺人'} / {file.title || '未知标题'}
+        <span className="truncate-1" style={{ display: 'block', fontWeight: 850, color: 'var(--ink)' }}>{item.name}</span>
+        <span style={{ display: 'block', marginTop: 3, color: 'var(--muted)', fontSize: 12 }}>
+          {isFolder
+            ? (count < 0 ? '文件夹 / 展开查看' : `${count} 个当前层音乐文件`)
+            : `${item.artist || '未知艺人'} / ${item.title || '未知标题'}`}
         </span>
       </span>
       <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        <span className={`chip ${extTone(ext)}`}>{ext ? ext.toUpperCase() : 'FILE'}</span>
+        <span className={`chip ${isFolder ? 'chip-amber' : extTone(ext)}`}>{isFolder ? 'DIR' : (ext ? ext.toUpperCase() : 'FILE')}</span>
+        {isFolder && <Icons.Arrow />}
       </span>
     </button>
   );
@@ -237,32 +207,33 @@ export default function Home() {
   const restoreRunRef = useRef(false);
   const lastLibraryPathKey = 'openmusictag:last-library-path';
 
-  useEffect(() => {
-    if (useAppStore.getState().subFolders.length > 0) return undefined;
-    if (restoreRunRef.current) return undefined;
-    restoreRunRef.current = true;
-
-    const lastPath = window.localStorage?.getItem(lastLibraryPathKey);
-    if (lastPath) {
-      handleFolderClick(lastPath);
-    }
-    return undefined;
-  }, []);
-
-  const handleFolderClick = async (path) => {
+  const handleFolderClick = async (path, options = {}) => {
+    if (!path) return false;
+    const { persist = true } = options;
     setLoadingPath(path);
     setSelectedFolder(path);
     try {
       const result = await callQt('scan_directory_lazy', path);
-      store.setCurrentPath(path);
+      if (result?.exists === false) {
+        return false;
+      }
+      const resolvedPath = result?.path || path;
+      store.setCurrentPath(resolvedPath);
       store.setSubFolders(result?.subfolders || []);
       store.setCurrentFiles(result?.files || []);
       store.closeFileDetail();
-      window.localStorage?.setItem(lastLibraryPathKey, path);
+      if (persist) {
+        window.localStorage?.setItem(lastLibraryPathKey, resolvedPath);
+        callQt('set_last_library_path', resolvedPath).catch((error) => {
+          console.warn('保存上次资源库目录失败:', error);
+        });
+      }
+      return true;
     } catch (e) {
       console.error('扫描文件夹失败:', e);
       store.setSubFolders([]);
       store.setCurrentFiles([]);
+      return false;
     } finally {
       setLoadingPath(null);
     }
@@ -293,7 +264,50 @@ export default function Home() {
     }
   };
 
+  useEffect(() => {
+    if (useAppStore.getState().currentPath) return undefined;
+    if (restoreRunRef.current) return undefined;
+    restoreRunRef.current = true;
+
+    let cancelled = false;
+    const restoreLibraryPath = async () => {
+      const candidates = [];
+      try {
+        const savedPath = await callQt('get_last_library_path');
+        if (savedPath) candidates.push(savedPath);
+      } catch (error) {
+        console.warn('读取上次资源库目录失败:', error);
+      }
+
+      const localPath = window.localStorage?.getItem(lastLibraryPathKey);
+      if (localPath) candidates.push(localPath);
+
+      try {
+        const homePath = await callQt('get_home_path');
+        if (homePath) candidates.push(homePath);
+      } catch (error) {
+        console.warn('读取用户目录失败:', error);
+      }
+
+      const uniqueCandidates = [...new Set(candidates.filter(Boolean))];
+      for (const candidate of uniqueCandidates) {
+        if (cancelled) return;
+        const opened = await handleFolderClick(candidate, { persist: true });
+        if (opened) return;
+      }
+    };
+
+    restoreLibraryPath();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const hasLibraryRoot = Boolean(store.currentPath || store.subFolders.length > 0 || store.currentFiles.length > 0);
+  const visibleItems = [
+    ...store.subFolders.map((folder) => ({ ...folder, kind: 'folder' })),
+    ...store.currentFiles.map((file) => ({ ...file, kind: 'audio' })),
+  ];
 
   return (
     <div className="page animate-fadeIn">
@@ -307,12 +321,12 @@ export default function Home() {
         </div>
         <div className="toolbar">
           {store.currentPath && (
-            <span className="chip mono chip-blue" title={store.currentPath}>
-              {store.currentPath.split(/[\\/]/).filter(Boolean).pop() || store.currentPath}
+            <span className="library-current-path mono" title={store.currentPath}>
+              {store.currentPath}
             </span>
           )}
           <button type="button" className="btn btn-primary" onClick={handleChooseRoot}>
-            选择文件夹
+            切换根目录
           </button>
         </div>
       </header>
@@ -335,88 +349,53 @@ export default function Home() {
       {hasLibraryRoot && (
         <section className="library-workbench">
           <div className="library-browser-column">
-            <div className="library-browser-strip">
+            <div className="library-section-head">
               <div>
-                <span className="library-browser-label">当前目录</span>
-                <div className="mono truncate-1" title={store.currentPath || ''}>
-                  {store.currentPath || '未选择目录'}
-                </div>
+                <h2 className="panel-title">当前目录文件</h2>
+                <p className="panel-subtitle">
+                  {visibleItems.length > 0 ? `${visibleItems.length} 项，只显示当前层级` : '当前目录暂无可展示文件'}
+                </p>
               </div>
-              <div className="library-browser-actions">
+              <div className="library-section-actions">
+                <span className="chip">{store.subFolders.length} 目录</span>
+                <span className="chip">{store.currentFiles.length} 音频</span>
                 {store.currentPath && (
                   <button type="button" className="btn btn-secondary" onClick={handleParentClick}>
                     返回上一级
                   </button>
                 )}
-                <button type="button" className="btn btn-ghost" onClick={handleChooseRoot}>
-                  {store.currentPath ? '切换根目录' : '选择文件夹'}
-                </button>
+                {loadingPath && (
+                  <span className="chip chip-blue">
+                    <Icons.Loader />
+                    加载中
+                  </span>
+                )}
               </div>
             </div>
 
-            <div className="library-browser-sections">
-              <div className="library-browser-section library-directory-panel">
-                <div className="library-section-head">
-                  <div>
-                    <h2 className="panel-title">目录结构</h2>
-                    <p className="panel-subtitle">只展开当前层级</p>
-                  </div>
-                  <span className="chip">{store.subFolders.length}</span>
+            <div className="library-scroll-list library-unified-list">
+              {store.isLoadingFiles ? (
+                <div className="empty-state">
+                  <Icons.Loader />
+                  <div style={{ marginTop: 10 }}>正在读取目录</div>
                 </div>
-                <div className="library-scroll-list">
-                  {store.subFolders.length > 0 ? (
-                    store.subFolders.map((folder) => (
-                      <FolderRow
-                        key={folder.path}
-                        folder={folder}
-                        selected={selectedFolder === folder.path}
-                        onClick={handleFolderClick}
-                      />
-                    ))
-                  ) : (
-                    <div className="empty-state">
-                      <Icons.Folder />
-                      <div style={{ marginTop: 10 }}>{store.currentPath ? '当前目录没有子目录' : '请选择音乐根目录'}</div>
-                    </div>
-                  )}
+              ) : visibleItems.length > 0 ? (
+                visibleItems.map((item, index) => (
+                  <LibraryItemRow
+                    key={`${item.path}-${index}`}
+                    item={item}
+                    selected={item.kind === 'folder' ? selectedFolder === item.path : store.selectedFile?.path === item.path}
+                    onOpenFolder={handleFolderClick}
+                    onOpenFile={handleFileClick}
+                  />
+                ))
+              ) : (
+                <div className="empty-state">
+                  <Icons.File />
+                  <div style={{ marginTop: 10, fontWeight: 850, color: 'var(--ink)' }}>当前目录为空</div>
+                  <div style={{ marginTop: 4, fontSize: 13 }}>这里只展示当前层级的文件夹和音乐文件。</div>
                 </div>
-              </div>
-
-              <div className="library-browser-section library-files-panel">
-                <div className="library-section-head">
-                  <div>
-                    <h2 className="panel-title">待处理文件</h2>
-                    <p className="panel-subtitle">
-                      {store.currentFiles.length > 0 ? '仅当前目录下的音乐文件' : '选择目录后显示当前层文件'}
-                    </p>
-                  </div>
-                  {loadingPath ? <span className="chip chip-blue"><Icons.Loader /> 加载中</span> : <span className="chip">{store.currentFiles.length}</span>}
-                </div>
-
-                <div className="library-scroll-list">
-                  {store.isLoadingFiles ? (
-                    <div className="empty-state">
-                      <Icons.Loader />
-                      <div style={{ marginTop: 10 }}>正在读取目录</div>
-                    </div>
-                  ) : store.currentFiles.length > 0 ? (
-                    store.currentFiles.map((file, index) => (
-                      <FileRow
-                        key={`${file.path}-${index}`}
-                        file={file}
-                        selected={store.selectedFile?.path === file.path}
-                        onClick={handleFileClick}
-                      />
-                    ))
-                  ) : (
-                    <div className="empty-state">
-                      <Icons.File />
-                      <div style={{ marginTop: 10, fontWeight: 850, color: 'var(--ink)' }}>没有可展示的音乐文件</div>
-                      <div style={{ marginTop: 4, fontSize: 13 }}>支持 MP3、FLAC、M4A、APE、OGG、WAV。</div>
-                    </div>
-                  )}
-                </div>
-              </div>
+              )}
             </div>
           </div>
 

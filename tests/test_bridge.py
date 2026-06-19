@@ -188,6 +188,15 @@ class DefaultsContractTests(unittest.TestCase):
     def test_initial_permission_probe_returns_bool(self):
         self.assertIsInstance(self.bridge.request_initial_permissions(), bool)
 
+    def test_last_library_path_round_trip(self):
+        from core.storage import Storage
+        with tempfile.TemporaryDirectory() as tmp:
+            self.bridge._storage = Storage(Path(tmp) / "data.db")
+            self.assertEqual(self.bridge.get_last_library_path(), "")
+            self.assertTrue(self.bridge.set_last_library_path("/music/root"))
+            self.assertEqual(self.bridge.get_last_library_path(), "/music/root")
+            self.bridge._storage.close()
+
 
 class BridgeStorageReadTests(unittest.TestCase):
     """bridge 的持久化读取 slot：注入临时 Storage，避免触碰用户目录。"""
@@ -271,6 +280,9 @@ class WebChannelTypeSafetyTests(unittest.TestCase):
             "get_recent_tasks": "QVariantList",
             "get_daily_activity": "QVariantList",
             "get_common_directories": "QVariantList",
+            "get_home_path": "QString",
+            "get_last_library_path": "QString",
+            "set_last_library_path": "bool",
             "request_initial_permissions": "bool",
             "list_artist_aliases": "QVariantList",
             "list_cleanup_rules": "QVariantList",

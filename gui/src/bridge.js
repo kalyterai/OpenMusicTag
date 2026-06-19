@@ -32,11 +32,18 @@ function getMockResult(method, args) {
   if (method === 'get_home_path') {
     return '/Users';
   }
+  if (method === 'get_last_library_path') {
+    return window.localStorage?.getItem('openmusictag:last-library-path') || '';
+  }
+  if (method === 'set_last_library_path') {
+    window.localStorage?.setItem('openmusictag:last-library-path', args[0] || '');
+    return true;
+  }
   if (method === 'scan_directory') {
     return { subfolders: [], files: [] };
   }
   if (method === 'scan_directory_lazy') {
-    return { subfolders: [], files: [] };
+    return { subfolders: [], files: [], exists: true, path: args[0] || '' };
   }
   if (method === 'count_folder_files') {
     return 0;

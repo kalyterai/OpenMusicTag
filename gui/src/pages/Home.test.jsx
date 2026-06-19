@@ -35,7 +35,7 @@ describe('Home 资源库详情 - 真实数据', () => {
     expect(screen.getByText('晴天.mp3')).toBeInTheDocument();
   });
 
-  it('目录和待处理文件合并在左侧选择列，文件信息独立为主区域', () => {
+  it('目录和音乐文件合并在同一个当前目录文件列表', () => {
     useAppStore.setState({
       fileDetailVisible: true,
       selectedFile: {
@@ -51,8 +51,10 @@ describe('Home 资源库详情 - 真实数据', () => {
     const browserColumn = container.querySelector('.library-browser-column');
 
     expect(browserColumn).toBeInTheDocument();
-    expect(browserColumn?.querySelector('.library-directory-panel')).toBeInTheDocument();
-    expect(browserColumn?.querySelector('.library-files-panel')).toBeInTheDocument();
+    expect(screen.getByText('当前目录文件')).toBeInTheDocument();
+    expect(screen.queryByText('目录结构')).not.toBeInTheDocument();
+    expect(screen.queryByText('待处理文件')).not.toBeInTheDocument();
+    expect(browserColumn?.querySelector('.library-unified-list')).toBeInTheDocument();
     expect(container.querySelector('.library-inspector')).toBeInTheDocument();
     expect(screen.getByText('文件信息')).toBeInTheDocument();
   });

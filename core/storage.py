@@ -124,6 +124,14 @@ CREATE TABLE IF NOT EXISTS cleanup_rules (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_artist_alias_original ON artist_aliases(original);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_cleanup_rule_pattern ON cleanup_rules(pattern);
 
+-- 应用级设置表：保存语言、主题、上次资源库目录等全局偏好
+CREATE TABLE IF NOT EXISTS app_settings (
+    key          TEXT PRIMARY KEY,                          -- 设置键
+    value        TEXT DEFAULT '',                           -- 设置值
+    gmt_create   TEXT NOT NULL DEFAULT ({_TS_SQL}),         -- 审计：记录创建时间
+    gmt_modified TEXT NOT NULL DEFAULT ({_TS_SQL})          -- 审计：记录最后更新时间
+);
+
 -- gmt_modified 自动刷新触发器（SQLite 无 ON UPDATE，靠 AFTER UPDATE 实现）
 -- 默认 recursive_triggers=OFF，内部 UPDATE 不会再次触发本触发器，无递归。
 CREATE TRIGGER IF NOT EXISTS trg_tasks_modified
@@ -148,6 +156,12 @@ CREATE TRIGGER IF NOT EXISTS trg_cleanup_rules_modified
 AFTER UPDATE ON cleanup_rules FOR EACH ROW
 BEGIN
     UPDATE cleanup_rules SET gmt_modified = {_TS_SQL} WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_app_settings_modified
+AFTER UPDATE ON app_settings FOR EACH ROW
+BEGIN
+    UPDATE app_settings SET gmt_modified = {_TS_SQL} WHERE key = OLD.key;
 END;
 """
 
@@ -251,6 +265,24 @@ class Storage:
             self._conn.close()
 
     # ========== 工具 ==========
+
+    def get_setting(self, key: str, default: str = "") -> str:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT value FROM app_settings WHERE key=?", (str(key),)
+            ).fetchone()
+        return str(row["value"]) if row and row["value"] is not None else default
+
+    def set_setting(self, key: str, value: str) -> None:
+        ts = _now()
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO app_settings (key, value, gmt_create, gmt_modified)"
+                " VALUES (?, ?, ?, ?)"
+                " ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (str(key), str(value), ts, ts),
+            )
+            self._conn.commit()
 
     @staticmethod
     def _row_to_song(row: sqlite3.Row) -> Dict[str, Any]:
