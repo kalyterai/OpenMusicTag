@@ -35,6 +35,28 @@ describe('Home 资源库详情 - 真实数据', () => {
     expect(screen.getByText('晴天.mp3')).toBeInTheDocument();
   });
 
+  it('目录和待处理文件合并在左侧选择列，文件信息独立为主区域', () => {
+    useAppStore.setState({
+      fileDetailVisible: true,
+      selectedFile: {
+        name: '晴天.mp3',
+        path: '/music/jay/qingtian.mp3',
+        ext: '.mp3',
+        artist: '周杰伦',
+        title: '晴天',
+        album: '叶惠美',
+      },
+    });
+    const { container } = render(<Home />);
+    const browserColumn = container.querySelector('.library-browser-column');
+
+    expect(browserColumn).toBeInTheDocument();
+    expect(browserColumn?.querySelector('.library-directory-panel')).toBeInTheDocument();
+    expect(browserColumn?.querySelector('.library-files-panel')).toBeInTheDocument();
+    expect(container.querySelector('.library-inspector')).toBeInTheDocument();
+    expect(screen.getByText('文件信息')).toBeInTheDocument();
+  });
+
   it('子文件夹文件数使用真实 fileCount（非随机数）', () => {
     render(<Home />);
     expect(screen.getByText(/12\s*个当前层音乐文件/)).toBeInTheDocument();
