@@ -1,32 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""通用音乐刮削软件 - 使用配置化 Pipeline"""
+"""OpenMusicTag 命令行入口。
 
-from pathlib import Path
+参数解析与批处理逻辑统一在 ``core.pipeline.main``，本文件只是保留项目根目录下
+一个便捷入口，等价于 ``python -m core.pipeline``。
 
-from core.config import AppConfig
-from core.pipeline import MusicOrganizerPipeline
+用法::
 
+    python organizer.py <输入目录> [-o 输出目录] [-t 线程数]
+"""
 
-def main():
-    """主函数：交互式设置"""
-    print("=" * 60)
-    print("通用音乐刮削软件 (Configurable Pipeline)")
-    print("功能：繁简转换 | 去广告乱码 | 刮削元数据 | 智能整理")
-    print("=" * 60)
-
-    input_path = "/path/to/music"
-    output_path = "/path/to/music_organized"
-    threads = 8
-    # 初始化配置
-    config = AppConfig(
-        input_path=Path(input_path), output_path=Path(output_path), threads=threads
-    )
-
-    # 创建管道并处理
-    pipeline = MusicOrganizerPipeline(config)
-    pipeline.process()
-
+from core.pipeline import main
 
 if __name__ == "__main__":
     main()

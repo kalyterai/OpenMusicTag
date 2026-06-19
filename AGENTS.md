@@ -64,12 +64,12 @@ python organizer.py <输入目录> [-o <输出目录>] [-t <线程数>]
 python organizer.py /path/to/music -o /path/to/music_organized -t 4
 ```
 
-### 方式二：交互式运行
+### 方式二：作为模块运行
 
-修改 `organizer.py` 中的 `input_path` 和 `output_path` 配置后运行：
+`organizer.py` 只是薄壳，等价于直接调用核心包：
 
 ```bash
-python organizer.py
+python -m core.pipeline <输入目录> [-o <输出目录>] [-t <线程数>]
 ```
 
 ### 处理本地或网络共享音乐目录

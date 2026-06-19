@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import useAppStore, { useStats } from '../stores/appStore';
 import { useQtBridge } from '../bridge';
 
@@ -277,24 +277,13 @@ function FileDetailPanel({ file, onClose }) {
 }
 
 export default function Home({ bridgeReady }) {
-  const { 
+  const {
     totalFiles, processedFiles, successCount, failCount,
-    updateStats 
   } = useStats();
   const store = useAppStore();
   const { scanDirectory, getMusicFileDetails } = useQtBridge();
   const [loadingPath, setLoadingPath] = useState(null);
   const [selectedFolder, setSelectedFolder] = useState(null);
-
-  // 加载统计数据
-  useEffect(() => {
-    updateStats({
-      totalFiles: 156,
-      processedFiles: 142,
-      successCount: 138,
-      failCount: 4,
-    });
-  }, [updateStats]);
 
   // 处理文件夹点击
   const handleFolderClick = async (path) => {
@@ -325,12 +314,6 @@ export default function Home({ bridgeReady }) {
   // 关闭详情面板
   const handleCloseDetail = () => {
     store.closeFileDetail();
-  };
-
-  // 计算文件夹中的文件总数
-  const getFolderStats = (folderPath) => {
-    // 这里可以从之前扫描的结果中获取
-    return { files: Math.floor(Math.random() * 50) + 5 };
   };
 
   return (
@@ -379,20 +362,16 @@ export default function Home({ bridgeReady }) {
           </h3>
           <div className="flex-1 overflow-y-auto space-y-2">
             {store.subFolders.length > 0 ? (
-              store.subFolders.map((folder) => {
-                const stats = getFolderStats(folder.path);
-                const isLoading = loadingPath === folder.path;
-                return (
-                  <FolderCard
-                    key={folder.path}
-                    name={folder.name}
-                    path={folder.path}
-                    fileCount={stats.files}
-                    onClick={handleFolderClick}
-                    isSelected={selectedFolder === folder.path}
-                  />
-                );
-              })
+              store.subFolders.map((folder) => (
+                <FolderCard
+                  key={folder.path}
+                  name={folder.name}
+                  path={folder.path}
+                  fileCount={folder.fileCount ?? 0}
+                  onClick={handleFolderClick}
+                  isSelected={selectedFolder === folder.path}
+                />
+              ))
             ) : (
               <div className="text-center py-8 text-neutral-400">
                 <Icons.Folder />

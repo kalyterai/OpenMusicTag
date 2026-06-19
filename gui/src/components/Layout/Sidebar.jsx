@@ -1,12 +1,7 @@
 import React from 'react';
 import useAppStore from '../../stores/appStore';
-
-// 闪电图标 - 紫色 #6366F1
-const LightningIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="#6366F1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
+import { APP_INFO } from '../../utils/constants';
+import logo from '../../assets/logo.png';
 
 // 导航图标
 const Icons = {
@@ -86,10 +81,16 @@ export default function Sidebar() {
         padding: sidebarCollapsed ? '0' : '0 16px',
         gap: '10px',
       }}>
-        <LightningIcon />
+        <img
+          src={logo}
+          alt={APP_INFO.name}
+          width={28}
+          height={28}
+          style={{ borderRadius: '6px', objectFit: 'contain' }}
+        />
         {!sidebarCollapsed && (
           <span style={{ fontSize: '18px', fontWeight: 600, color: '#333' }}>
-            MusicFlow
+            {APP_INFO.name}
           </span>
         )}
       </div>
