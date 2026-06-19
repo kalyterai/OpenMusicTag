@@ -3,58 +3,60 @@ import useAppStore from '../../stores/appStore';
 import { APP_INFO } from '../../utils/constants';
 import logo from '../../assets/logo.png';
 
-// 导航图标
+const Icon = ({ children }) => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    {children}
+  </svg>
+);
+
 const Icons = {
   Dashboard: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-    </svg>
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5.5A1.5 1.5 0 015.5 4h4A1.5 1.5 0 0111 5.5v4A1.5 1.5 0 019.5 11h-4A1.5 1.5 0 014 9.5v-4zM13 5.5A1.5 1.5 0 0114.5 4h4A1.5 1.5 0 0120 5.5v2A1.5 1.5 0 0118.5 9h-4A1.5 1.5 0 0113 7.5v-2zM13 13.5a1.5 1.5 0 011.5-1.5h4a1.5 1.5 0 011.5 1.5v5a1.5 1.5 0 01-1.5 1.5h-4a1.5 1.5 0 01-1.5-1.5v-5zM4 15.5A1.5 1.5 0 015.5 14h4a1.5 1.5 0 011.5 1.5v3A1.5 1.5 0 019.5 20h-4A1.5 1.5 0 014 18.5v-3z" />
+    </Icon>
   ),
   Files: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-    </svg>
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.5 7.5A2.5 2.5 0 016 5h4l2 2h6A2.5 2.5 0 0120.5 9.5v7A2.5 2.5 0 0118 19H6a2.5 2.5 0 01-2.5-2.5v-9z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 13h10" />
+    </Icon>
   ),
   Scrape: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-    </svg>
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12c2.2-4.2 5.5-4.2 7.8 0 2.2 4.2 5.5 4.2 7.2 0" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 17c2.2-4.2 5.5-4.2 7.8 0 2.2 4.2 5.5 4.2 7.2 0M5 7c2.2-4.2 5.5-4.2 7.8 0 2.2 4.2 5.5 4.2 7.2 0" />
+    </Icon>
   ),
   Progress: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-    </svg>
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 19V9m5 10V5m5 14v-7m5 7V8" />
+    </Icon>
   ),
   Tags: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-    </svg>
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13.5l-6.6 6.6a2 2 0 01-2.8 0L4 13.5V5h8.5L20 12.5v1z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 8h.01" />
+    </Icon>
   ),
   Settings: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8.5a3.5 3.5 0 110 7 3.5 3.5 0 010-7z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.4 15a1.8 1.8 0 00.36 1.98l.04.04a2.1 2.1 0 01-2.97 2.97l-.04-.04a1.8 1.8 0 00-1.98-.36 1.8 1.8 0 00-1.1 1.66V21a2.1 2.1 0 01-4.2 0v-.06a1.8 1.8 0 00-1.1-1.66 1.8 1.8 0 00-1.98.36l-.04.04a2.1 2.1 0 01-2.97-2.97l.04-.04A1.8 1.8 0 003.8 15a1.8 1.8 0 00-1.66-1.1H2.1a2.1 2.1 0 010-4.2h.06a1.8 1.8 0 001.66-1.1 1.8 1.8 0 00-.36-1.98l-.04-.04a2.1 2.1 0 012.97-2.97l.04.04a1.8 1.8 0 001.98.36 1.8 1.8 0 001.1-1.66V2.1a2.1 2.1 0 014.2 0v.06a1.8 1.8 0 001.1 1.66 1.8 1.8 0 001.98-.36l.04-.04a2.1 2.1 0 012.97 2.97l-.04.04a1.8 1.8 0 00-.36 1.98 1.8 1.8 0 001.66 1.1h.06a2.1 2.1 0 010 4.2h-.06a1.8 1.8 0 00-1.66 1.1z" />
+    </Icon>
   ),
   Collapse: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-    </svg>
-  ),
-  Bell: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-    </svg>
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 6l-6 6 6 6" />
+    </Icon>
   ),
 };
 
-// 菜单配置
 const menuItems = [
-  { id: 'dashboard', label: '控制面板', icon: Icons.Dashboard },
-  { id: 'files', label: '资源库详情', icon: Icons.Files },
-  { id: 'scrape', label: '新建刮削', icon: Icons.Scrape },
-  { id: 'progress', label: '任务详情', icon: Icons.Progress },
-  { id: 'tags', label: '标签库', icon: Icons.Tags },
+  { id: 'dashboard', label: '控制面板', description: '总览', icon: Icons.Dashboard },
+  { id: 'files', label: '资源库详情', description: '文件与标签', icon: Icons.Files },
+  { id: 'scrape', label: '新建刮削', description: '任务编排', icon: Icons.Scrape },
+  { id: 'progress', label: '任务详情', description: '进度与日志', icon: Icons.Progress },
+  { id: 'tags', label: '标签库', description: '映射规则', icon: Icons.Tags },
 ];
 
 export default function Sidebar() {
@@ -62,123 +64,140 @@ export default function Sidebar() {
 
   return (
     <aside
+      className="shrink-0"
       style={{
-        width: sidebarCollapsed ? '64px' : '220px',
+        width: sidebarCollapsed ? 'var(--sidebar-collapsed)' : 'var(--sidebar-width)',
         height: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        background: '#FFFFFF',
-        borderRight: '1px solid #E5E5E5',
-        transition: 'width 0.3s ease',
+        background: 'rgba(22, 20, 19, 0.95)',
+        color: '#fffdf7',
+        borderRight: '1px solid rgba(255, 253, 247, 0.10)',
+        transition: 'width 180ms ease',
       }}
     >
-      {/* Logo 区域 */}
-      <div style={{
-        height: '64px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-        padding: sidebarCollapsed ? '0' : '0 16px',
-        gap: '10px',
-      }}>
+      <div
+        style={{
+          minHeight: 78,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+          gap: 12,
+          padding: sidebarCollapsed ? 0 : '0 16px',
+          borderBottom: '1px solid rgba(255, 253, 247, 0.10)',
+        }}
+      >
         <img
           src={logo}
           alt={APP_INFO.name}
-          width={28}
-          height={28}
-          style={{ borderRadius: '6px', objectFit: 'contain' }}
+          width={34}
+          height={34}
+          style={{ borderRadius: 8, objectFit: 'contain', background: '#fffdf7' }}
         />
         {!sidebarCollapsed && (
-          <span style={{ fontSize: '18px', fontWeight: 600, color: '#333' }}>
-            {APP_INFO.name}
-          </span>
+          <div>
+            <div style={{ fontSize: 17, fontWeight: 850, lineHeight: 1 }}>{APP_INFO.name}</div>
+            <div style={{ marginTop: 5, color: 'rgba(255, 253, 247, 0.58)', fontSize: 12 }}>
+              通用音乐刮削台
+            </div>
+          </div>
         )}
       </div>
 
-      {/* 导航菜单 */}
-      <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      <nav style={{ flex: 1, padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
         {menuItems.map((item) => {
-          const Icon = item.icon;
+          const ItemIcon = item.icon;
           const isActive = currentPage === item.id;
 
           return (
             <button
               key={item.id}
+              type="button"
               onClick={() => setCurrentPage(item.id)}
+              title={sidebarCollapsed ? item.label : undefined}
               style={{
                 width: '100%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-                gap: '10px',
-                padding: sidebarCollapsed ? '12px' : '10px 12px',
-                borderRadius: '10px',
-                border: 'none',
-                background: isActive ? '#F0F2FF' : 'transparent',
-                color: isActive ? '#6366F1' : '#6B7280',
+                gap: 11,
+                minHeight: 46,
+                padding: sidebarCollapsed ? 0 : '8px 10px',
+                border: '1px solid',
+                borderColor: isActive ? 'rgba(217, 177, 96, 0.42)' : 'transparent',
+                borderRadius: 8,
+                background: isActive ? 'rgba(255, 253, 247, 0.10)' : 'transparent',
+                color: isActive ? '#fffdf7' : 'rgba(255, 253, 247, 0.66)',
                 cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: isActive ? 500 : 400,
-                transition: 'all 0.2s ease',
+                transition: 'background 160ms ease, color 160ms ease, border-color 160ms ease',
               }}
-              title={sidebarCollapsed ? item.label : undefined}
             >
-              <Icon />
-              {!sidebarCollapsed && <span>{item.label}</span>}
+              <span style={{ color: isActive ? '#d9b160' : 'currentColor' }}>
+                <ItemIcon />
+              </span>
+              {!sidebarCollapsed && (
+                <span style={{ minWidth: 0, textAlign: 'left' }}>
+                  <span style={{ display: 'block', fontSize: 14, fontWeight: 780 }}>{item.label}</span>
+                  <span style={{ display: 'block', marginTop: 2, fontSize: 11, color: 'rgba(255, 253, 247, 0.42)' }}>
+                    {item.description}
+                  </span>
+                </span>
+              )}
             </button>
           );
         })}
       </nav>
 
-      {/* 底部设置和收起按钮 */}
-      <div style={{ padding: '12px 8px', borderTop: '1px solid #E5E5E5' }}>
-        {/* 系统设置 */}
+      <div style={{ padding: 10, borderTop: '1px solid rgba(255, 253, 247, 0.10)' }}>
         <button
+          type="button"
           onClick={() => setCurrentPage('settings')}
+          title={sidebarCollapsed ? '系统设置' : undefined}
           style={{
             width: '100%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-            gap: '10px',
-            padding: sidebarCollapsed ? '12px' : '10px 12px',
-            borderRadius: '10px',
-            border: 'none',
-            background: currentPage === 'settings' ? '#F0F2FF' : 'transparent',
-            color: currentPage === 'settings' ? '#6366F1' : '#6B7280',
+            gap: 11,
+            minHeight: 44,
+            padding: sidebarCollapsed ? 0 : '8px 10px',
+            border: '1px solid',
+            borderColor: currentPage === 'settings' ? 'rgba(217, 177, 96, 0.42)' : 'transparent',
+            borderRadius: 8,
+            background: currentPage === 'settings' ? 'rgba(255, 253, 247, 0.10)' : 'transparent',
+            color: currentPage === 'settings' ? '#fffdf7' : 'rgba(255, 253, 247, 0.66)',
             cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: currentPage === 'settings' ? 500 : 400,
-            marginBottom: sidebarCollapsed ? '0' : '8px',
-            transition: 'all 0.2s ease',
+            marginBottom: 8,
           }}
-          title={sidebarCollapsed ? '系统设置' : undefined}
         >
-          <Icons.Settings />
-          {!sidebarCollapsed && <span>系统设置</span>}
+          <span style={{ color: currentPage === 'settings' ? '#d9b160' : 'currentColor' }}>
+            <Icons.Settings />
+          </span>
+          {!sidebarCollapsed && <span style={{ fontSize: 14, fontWeight: 780 }}>系统设置</span>}
         </button>
 
-        {/* 收起按钮 */}
         <button
+          type="button"
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          title={sidebarCollapsed ? '展开侧边栏' : undefined}
           style={{
             width: '100%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '10px',
-            padding: '10px 12px',
-            borderRadius: '10px',
-            border: 'none',
-            background: '#F5F5F5',
-            color: '#6B7280',
+            gap: 8,
+            minHeight: 40,
+            border: '1px solid rgba(255, 253, 247, 0.12)',
+            borderRadius: 8,
+            background: 'rgba(255, 253, 247, 0.06)',
+            color: 'rgba(255, 253, 247, 0.62)',
             cursor: 'pointer',
-            fontSize: '14px',
-            transition: 'all 0.2s ease',
           }}
         >
-          <Icons.Collapse />
-          {!sidebarCollapsed && <span>收起</span>}
+          <span style={{ transform: sidebarCollapsed ? 'rotate(180deg)' : 'none', transition: 'transform 180ms ease' }}>
+            <Icons.Collapse />
+          </span>
+          {!sidebarCollapsed && <span style={{ fontSize: 13, fontWeight: 750 }}>收起</span>}
         </button>
       </div>
     </aside>

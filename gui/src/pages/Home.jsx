@@ -1,307 +1,291 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import useAppStore, { useStats } from '../stores/appStore';
 import { useQtBridge } from '../bridge';
+import { formatFileSize } from '../utils/format';
 
-// SVG Icons
+const Icon = ({ children, size = 'w-5 h-5' }) => (
+  <svg className={size} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    {children}
+  </svg>
+);
+
 const Icons = {
   Music: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-    </svg>
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.1-1.3 2-3 2s-3-.9-3-2 1.3-2 3-2 3 .9 3 2zm12-3c0 1.1-1.3 2-3 2s-3-.9-3-2 1.3-2 3-2 3 .9 3 2zM9 10l12-3" />
+    </Icon>
   ),
   Folder: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-    </svg>
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.5 7.5A2.5 2.5 0 016 5h4l2 2h6a2.5 2.5 0 012.5 2.5v7A2.5 2.5 0 0118 19H6a2.5 2.5 0 01-2.5-2.5v-9z" />
+    </Icon>
   ),
   File: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4h6l4 4v12H7V4z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 4v5h5M9 14h6M9 17h4" />
+    </Icon>
+  ),
+  Loader: () => (
+    <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.6A8 8 0 1120 12" />
     </svg>
   ),
-  Check: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-    </svg>
-  ),
-  Clock: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  ),
-  Image: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-    </svg>
-  ),
-  Tag: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-    </svg>
-  ),
-  Play: () => (
-    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  ),
-  ChevronRight: () => (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  Arrow: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
     </svg>
   ),
-  Loading: () => (
-    <svg className="w-6 h-6 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+  Close: () => (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
     </svg>
+  ),
+  Check: () => (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    </Icon>
   ),
 };
 
-// 统计卡片组件
-function StatCard({ icon: Icon, label, value, subtext, color = 'blue' }) {
-  const colorClasses = {
-    blue: 'bg-blue-50 text-blue-600 border-blue-100',
-    green: 'bg-green-50 text-green-600 border-green-100',
-    purple: 'bg-purple-50 text-purple-600 border-purple-100',
-    orange: 'bg-orange-50 text-orange-600 border-orange-100',
-    gray: 'bg-gray-50 text-gray-600 border-gray-100',
-  };
+function extTone(ext = '') {
+  const value = ext.toLowerCase();
+  if (value === '.flac' || value === '.wav') return 'chip-green';
+  if (value === '.m4a' || value === '.ape') return 'chip-amber';
+  if (value === '.ogg') return 'chip-blue';
+  return 'chip-blue';
+}
+
+function metadataScore(file) {
+  if (!file) return 0;
+  const fields = ['title', 'artist', 'album', 'year', 'genre', 'track'];
+  const filled = fields.filter((field) => Boolean(file[field] || file.tags?.[field])).length;
+  return Math.round((filled / fields.length) * 100);
+}
+
+function StatStrip({ totalFiles, processedFiles, successCount, failCount }) {
+  const successRate = processedFiles > 0 ? Math.round((successCount / processedFiles) * 100) : 0;
+  const items = [
+    ['已处理', processedFiles.toLocaleString(), '首'],
+    ['库内文件', totalFiles.toLocaleString(), '个'],
+    ['成功率', `${successRate}%`, '写入标签'],
+    ['待复核', failCount.toLocaleString(), '首'],
+  ];
 
   return (
-    <div className={`rounded-2xl p-5 border ${colorClasses[color]} transition-all hover:shadow-md`}>
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-neutral-600 mb-2">
-            <Icon />
-            <span className="text-sm font-medium">{label}</span>
-          </div>
-          <div className="text-3xl font-bold text-neutral-900">
-            {value}
-          </div>
-          {subtext && (
-            <div className="text-xs text-neutral-500 mt-1">{subtext}</div>
-          )}
-        </div>
-      </div>
+    <div className="metric-grid" style={{ marginBottom: 16 }}>
+      {items.map(([label, value, note]) => (
+        <section key={label} className="metric-card" style={{ minHeight: 100 }}>
+          <div className="metric-label">{label}</div>
+          <div className="metric-value" style={{ fontSize: 28 }}>{value}</div>
+          <div className="metric-note">{note}</div>
+        </section>
+      ))}
     </div>
   );
 }
 
-// 文件夹卡片组件
-function FolderCard({ name, path, fileCount, onClick, isSelected }) {
+function FolderRow({ folder, selected, onClick }) {
+  const count = folder.fileCount ?? 0;
+
   return (
     <button
-      onClick={() => onClick(path)}
-      className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left ${
-        isSelected 
-          ? 'bg-blue-50 border-2 border-blue-200' 
-          : 'bg-white border-2 border-transparent hover:bg-neutral-50'
-      }`}
+      type="button"
+      onClick={() => onClick(folder.path)}
+      className="panel"
+      style={{
+        width: '100%',
+        padding: 12,
+        boxShadow: 'none',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        textAlign: 'left',
+        cursor: 'pointer',
+        background: selected ? 'var(--groove-soft)' : 'var(--panel)',
+        borderColor: selected ? 'rgba(31, 95, 99, 0.38)' : 'var(--line)',
+      }}
     >
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-        isSelected ? 'bg-blue-100' : 'bg-purple-100'
-      }`}>
+      <span className="chip chip-amber" style={{ width: 34, height: 34, padding: 0, justifyContent: 'center' }}>
         <Icons.Folder />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="font-medium text-neutral-900 truncate">{name}</div>
-        <div className="text-sm text-neutral-500">{fileCount} 个文件</div>
-      </div>
-      <Icons.ChevronRight />
+      </span>
+      <span style={{ minWidth: 0, flex: 1 }}>
+        <span className="truncate-1" style={{ display: 'block', fontWeight: 850, color: 'var(--ink)' }}>{folder.name}</span>
+        <span style={{ display: 'block', marginTop: 3, color: 'var(--muted)', fontSize: 12 }}>{count} 个文件</span>
+      </span>
+      <Icons.Arrow />
     </button>
   );
 }
 
-// 音乐文件卡片组件
-function MusicFileCard({ file, onClick, isSelected }) {
-  const formatIcon = (ext) => {
-    const colors = {
-      '.mp3': 'bg-blue-100 text-blue-600',
-      '.flac': 'bg-green-100 text-green-600',
-      '.m4a': 'bg-purple-100 text-purple-600',
-      '.ape': 'bg-orange-100 text-orange-600',
-      '.ogg': 'bg-pink-100 text-pink-600',
-      '.wav': 'bg-gray-100 text-gray-600',
-    };
-    return colors[ext] || 'bg-gray-100 text-gray-600';
-  };
+function FileRow({ file, selected, onClick }) {
+  const ext = file.ext || '';
+  const score = metadataScore(file);
 
   return (
     <button
+      type="button"
       onClick={() => onClick(file)}
-      className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left ${
-        isSelected 
-          ? 'bg-blue-50 border-2 border-blue-200' 
-          : 'bg-white border-2 border-transparent hover:bg-neutral-50'
-      }`}
+      className="panel"
+      style={{
+        width: '100%',
+        padding: 12,
+        boxShadow: 'none',
+        display: 'grid',
+        gridTemplateColumns: '34px minmax(0, 1fr) auto',
+        gap: 12,
+        alignItems: 'center',
+        textAlign: 'left',
+        cursor: 'pointer',
+        background: selected ? 'var(--groove-soft)' : 'var(--panel)',
+        borderColor: selected ? 'rgba(31, 95, 99, 0.38)' : 'var(--line)',
+      }}
     >
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${formatIcon(file.ext)}`}>
+      <span className={`chip ${extTone(ext)}`} style={{ width: 34, height: 34, padding: 0, justifyContent: 'center' }}>
         <Icons.Music />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="font-medium text-neutral-900 truncate">{file.name}</div>
-        <div className="text-sm text-neutral-500">
-          {file.artist || '未知艺人'} - {file.title || '未知标题'}
-        </div>
-      </div>
-      <span className={`px-2 py-1 rounded text-xs font-medium ${formatIcon(file.ext)}`}>
-        {file.ext.toUpperCase()}
+      </span>
+      <span style={{ minWidth: 0 }}>
+        <span className="truncate-1" style={{ display: 'block', fontWeight: 850, color: 'var(--ink)' }}>{file.name}</span>
+        <span className="truncate-1" style={{ display: 'block', marginTop: 3, color: 'var(--muted)', fontSize: 12 }}>
+          {file.artist || '未知艺人'} / {file.title || '未知标题'}
+        </span>
+      </span>
+      <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <span className={`chip ${extTone(ext)}`}>{ext ? ext.toUpperCase() : 'FILE'}</span>
+        <span className={score >= 70 ? 'chip chip-green' : 'chip chip-amber'}>{score}%</span>
       </span>
     </button>
   );
 }
 
-// 文件详情面板组件
-function FileDetailPanel({ file, onClose }) {
-  if (!file) return null;
-
-  const formatIcon = (ext) => {
-    const colors = {
-      '.mp3': 'bg-blue-100 text-blue-600',
-      '.flac': 'bg-green-100 text-green-600',
-      '.m4a': 'bg-purple-100 text-purple-600',
-      '.ape': 'bg-orange-100 text-orange-600',
-      '.ogg': 'bg-pink-100 text-pink-600',
-      '.wav': 'bg-gray-100 text-gray-600',
-    };
-    return colors[ext] || 'bg-gray-100 text-gray-600';
-  };
-
+function DetailField({ label, value, mono = false }) {
   return (
-    <div className="w-80 bg-white border-l border-neutral-100 flex flex-col shrink-0 animate-slideIn">
-      {/* 头部 */}
-      <div className="p-4 border-b border-neutral-100 flex items-center justify-between">
-        <h3 className="font-semibold text-neutral-900">文件详情</h3>
-        <button
-          onClick={onClose}
-          className="p-1 hover:bg-neutral-100 rounded-lg transition-colors"
-        >
-          <svg className="w-5 h-5 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-
-      {/* 文件信息 */}
-      <div className="p-4 border-b border-neutral-100">
-        <div className="flex items-center gap-4 mb-4">
-          <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${formatIcon(file.ext)}`}>
-            <Icons.Music />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold text-neutral-900 truncate">{file.name}</div>
-            <div className="text-sm text-neutral-500">{file.ext.toUpperCase()} 格式</div>
-          </div>
-        </div>
-      </div>
-
-      {/* 标签信息 */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* 标题 */}
-        <div className="space-y-1">
-          <label className="text-xs text-neutral-500 font-medium">标题</label>
-          <div className="text-sm text-neutral-900 bg-neutral-50 px-3 py-2 rounded-lg">
-            {file.title || '-'}
-          </div>
-        </div>
-
-        {/* 艺人 */}
-        <div className="space-y-1">
-          <label className="text-xs text-neutral-500 font-medium">艺人</label>
-          <div className="text-sm text-neutral-900 bg-neutral-50 px-3 py-2 rounded-lg">
-            {file.artist || '-'}
-          </div>
-        </div>
-
-        {/* 专辑 */}
-        <div className="space-y-1">
-          <label className="text-xs text-neutral-500 font-medium">专辑</label>
-          <div className="text-sm text-neutral-900 bg-neutral-50 px-3 py-2 rounded-lg">
-            {file.album || '-'}
-          </div>
-        </div>
-
-        {/* 年份 */}
-        <div className="space-y-1">
-          <label className="text-xs text-neutral-500 font-medium">年份</label>
-          <div className="text-sm text-neutral-900 bg-neutral-50 px-3 py-2 rounded-lg">
-            {file.year || '-'}
-          </div>
-        </div>
-
-        {/* 流派 */}
-        <div className="space-y-1">
-          <label className="text-xs text-neutral-500 font-medium">流派</label>
-          <div className="text-sm text-neutral-900 bg-neutral-50 px-3 py-2 rounded-lg">
-            {file.genre || '-'}
-          </div>
-        </div>
-
-        {/* 轨道号 */}
-        <div className="space-y-1">
-          <label className="text-xs text-neutral-500 font-medium">轨道号</label>
-          <div className="text-sm text-neutral-900 bg-neutral-50 px-3 py-2 rounded-lg">
-            {file.track || '-'}
-          </div>
-        </div>
-
-        {/* 时长 */}
-        <div className="space-y-1">
-          <label className="text-xs text-neutral-500 font-medium">时长</label>
-          <div className="text-sm text-neutral-900 bg-neutral-50 px-3 py-2 rounded-lg">
-            {file.duration || '-'}
-          </div>
-        </div>
-
-        {/* 文件路径 */}
-        <div className="space-y-1">
-          <label className="text-xs text-neutral-500 font-medium">文件路径</label>
-          <div className="text-xs text-neutral-600 bg-neutral-50 px-3 py-2 rounded-lg break-all">
-            {file.path || '-'}
-          </div>
-        </div>
-      </div>
-
-      {/* 操作按钮 */}
-      <div className="p-4 border-t border-neutral-100 space-y-2">
-        <button className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2">
-          <Icons.Play />
-          播放预览
-        </button>
-        <button className="w-full py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-xl font-medium transition-colors">
-          查看元数据
-        </button>
+    <div>
+      <div style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 800, marginBottom: 6 }}>{label}</div>
+      <div
+        className={mono ? 'mono' : undefined}
+        style={{
+          minHeight: 36,
+          padding: '8px 10px',
+          border: '1px solid var(--line)',
+          borderRadius: 8,
+          background: 'rgba(247, 242, 232, 0.62)',
+          color: value ? 'var(--ink)' : 'var(--faint)',
+          fontSize: mono ? 12 : 13,
+          overflowWrap: 'anywhere',
+        }}
+      >
+        {value || '-'}
       </div>
     </div>
   );
 }
 
-export default function Home({ bridgeReady }) {
-  const {
-    totalFiles, processedFiles, successCount, failCount,
-  } = useStats();
+function FileDetailPanel({ file, onClose }) {
+  if (!file) return null;
+
+  const score = metadataScore(file);
+  const tags = file.tags && typeof file.tags === 'object' ? file.tags : {};
+  const extraTags = Object.entries(tags).filter(([key]) => !['title', 'artist', 'album', 'year', 'genre', 'track'].includes(key));
+
+  return (
+    <aside className="panel animate-slideIn library-detail" style={{ minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className="panel-header">
+        <div style={{ minWidth: 0 }}>
+          <h2 className="panel-title truncate-1">元数据检查</h2>
+          <p className="panel-subtitle truncate-1">{file.name}</p>
+        </div>
+        <button type="button" className="btn btn-ghost" onClick={onClose} aria-label="关闭详情">
+          <Icons.Close />
+        </button>
+      </div>
+
+      <div style={{ padding: 16, overflowY: 'auto' }}>
+        <div className="waveform" style={{ height: 96, marginBottom: 14 }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <span className={score >= 70 ? 'chip chip-green' : 'chip chip-amber'}>
+            <Icons.Check />
+            标签完整度 {score}%
+          </span>
+          <span className={`chip ${extTone(file.ext)}`}>{(file.ext || 'file').toUpperCase()}</span>
+        </div>
+
+        <div style={{ display: 'grid', gap: 10 }}>
+          <DetailField label="标题" value={file.title || tags.title} />
+          <DetailField label="艺人" value={file.artist || tags.artist} />
+          <DetailField label="专辑" value={file.album || tags.album} />
+          <DetailField label="年份" value={file.year || tags.year} />
+          <DetailField label="流派" value={file.genre || tags.genre} />
+          <DetailField label="音轨" value={file.track || tags.track} />
+          <DetailField label="时长" value={file.duration} />
+          <DetailField label="大小" value={file.bytes ? formatFileSize(file.bytes) : ''} />
+          <DetailField label="文件路径" value={file.path} mono />
+        </div>
+
+        {extraTags.length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <h3 className="panel-title" style={{ marginBottom: 10 }}>刮削字段</h3>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {extraTags.map(([key, value]) => (
+                <DetailField key={key} label={key} value={Array.isArray(value) ? value.join(', ') : String(value ?? '')} mono />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+export default function Home() {
+  const { totalFiles, processedFiles, successCount, failCount } = useStats();
   const store = useAppStore();
-  const { scanDirectory, getMusicFileDetails } = useQtBridge();
+  const {
+    scanDirectory,
+    getMusicFileDetails,
+    getCommonDirectories,
+    callQt,
+  } = useQtBridge();
   const [loadingPath, setLoadingPath] = useState(null);
   const [selectedFolder, setSelectedFolder] = useState(null);
 
-  // 处理文件夹点击
+  useEffect(() => {
+    if (useAppStore.getState().subFolders.length > 0) return undefined;
+
+    let active = true;
+    (async () => {
+      try {
+        const dirs = await getCommonDirectories();
+        if (active) useAppStore.getState().setCommonDirectories(dirs || []);
+      } catch (e) {
+        if (active) useAppStore.getState().setCommonDirectories([]);
+      }
+    })();
+    return () => { active = false; };
+  }, [getCommonDirectories]);
+
   const handleFolderClick = async (path) => {
     setLoadingPath(path);
     setSelectedFolder(path);
     try {
-      const result = await scanDirectory(path);
-      store.setSubFolders(result.subfolders || []);
-      store.setCurrentFiles(result.files || []);
+      let result;
+      try {
+        result = await callQt('scan_directory_lazy', path);
+      } catch (lazyError) {
+        result = await scanDirectory(path);
+      }
+      store.setCurrentPath(path);
+      store.setSubFolders(result?.subfolders || []);
+      store.setCurrentFiles(result?.files || []);
     } catch (e) {
       console.error('扫描文件夹失败:', e);
       store.setSubFolders([]);
       store.setCurrentFiles([]);
+    } finally {
+      setLoadingPath(null);
     }
-    setLoadingPath(null);
   };
 
-  // 处理文件点击
   const handleFileClick = async (file) => {
     try {
       const details = await getMusicFileDetails(file.path);
@@ -311,118 +295,113 @@ export default function Home({ bridgeReady }) {
     }
   };
 
-  // 关闭详情面板
-  const handleCloseDetail = () => {
-    store.closeFileDetail();
-  };
-
   return (
-    <div className="h-full flex flex-col animate-fadeIn">
-      {/* 统计信息区域 */}
-      <div className="p-6 shrink-0">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            icon={Icons.Music}
-            label="已处理歌曲"
-            value={processedFiles.toLocaleString()}
-            subtext="首"
-            color="blue"
-          />
-          <StatCard
-            icon={Icons.Folder}
-            label="音乐文件"
-            value={totalFiles.toLocaleString()}
-            subtext="个文件"
-            color="purple"
-          />
-          <StatCard
-            icon={Icons.Check}
-            label="成功率"
-            value={`${processedFiles > 0 ? Math.round((successCount / processedFiles) * 100) : 0}%`}
-            subtext="处理成功率"
-            color="green"
-          />
-          <StatCard
-            icon={Icons.Clock}
-            label="失败歌曲"
-            value={failCount.toLocaleString()}
-            subtext="首"
-            color="orange"
-          />
+    <div className="page animate-fadeIn">
+      <header className="page-header">
+        <div>
+          <p className="page-kicker">Library inspector</p>
+          <h1 className="page-title">资源库详情</h1>
+          <p className="page-copy">
+            浏览目录、抽查音频标签，并在处理前确认文件名、艺人、专辑和刮削字段是否可信。
+          </p>
         </div>
-      </div>
+        <div className="toolbar">
+          <span className="chip chip-blue">MP3</span>
+          <span className="chip chip-green">FLAC</span>
+          <span className="chip chip-amber">M4A</span>
+          <span className="chip">APE / OGG / WAV</span>
+        </div>
+      </header>
 
-      {/* 主内容区域 - 文件浏览器 */}
-      <div className="flex-1 flex overflow-hidden px-6 pb-6 gap-4">
-        {/* 左侧 - 子文件夹列表 */}
-        <div className="w-64 shrink-0 flex flex-col">
-          <h3 className="text-sm font-semibold text-neutral-700 mb-3 flex items-center gap-2">
-            <Icons.Folder />
-            子文件夹
-          </h3>
-          <div className="flex-1 overflow-y-auto space-y-2">
+      <StatStrip
+        totalFiles={totalFiles}
+        processedFiles={processedFiles}
+        successCount={successCount}
+        failCount={failCount}
+      />
+
+      <section className={`library-grid ${store.fileDetailVisible ? 'has-detail' : ''}`}>
+        <div className="panel" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div className="panel-header">
+            <div>
+              <h2 className="panel-title">目录</h2>
+              <p className="panel-subtitle">选择要检查的音乐文件夹</p>
+            </div>
+          </div>
+          <div style={{ padding: 12, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
             {store.subFolders.length > 0 ? (
               store.subFolders.map((folder) => (
-                <FolderCard
+                <FolderRow
                   key={folder.path}
-                  name={folder.name}
-                  path={folder.path}
-                  fileCount={folder.fileCount ?? 0}
+                  folder={folder}
+                  selected={selectedFolder === folder.path}
                   onClick={handleFolderClick}
-                  isSelected={selectedFolder === folder.path}
                 />
               ))
             ) : (
-              <div className="text-center py-8 text-neutral-400">
-                <Icons.Folder />
-                <p className="mt-2 text-sm">暂无子文件夹</p>
-              </div>
+              <>
+                {store.commonDirectories.slice(0, 6).map((path) => (
+                  <FolderRow
+                    key={path}
+                    folder={{ name: path.split(/[\\/]/).filter(Boolean).pop() || path, path, fileCount: 0 }}
+                    selected={selectedFolder === path}
+                    onClick={handleFolderClick}
+                  />
+                ))}
+                {store.commonDirectories.length === 0 && (
+                  <div className="empty-state">
+                    <Icons.Folder />
+                    <div style={{ marginTop: 10 }}>还没有目录</div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
 
-        {/* 中间 - 音乐文件列表 */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <h3 className="text-sm font-semibold text-neutral-700 mb-3 flex items-center gap-2">
-            <Icons.Music />
-            音乐文件
-            {store.currentFiles.length > 0 && (
-              <span className="text-xs text-neutral-400">({store.currentFiles.length} 首)</span>
-            )}
-          </h3>
-          <div className="flex-1 overflow-y-auto space-y-2">
+        <div className="panel" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div className="panel-header">
+            <div>
+              <h2 className="panel-title">音乐文件</h2>
+              <p className="panel-subtitle">
+                {store.currentFiles.length > 0 ? `${store.currentFiles.length} 首可检查` : '选择目录后显示文件'}
+              </p>
+            </div>
+            {loadingPath && <span className="chip chip-blue"><Icons.Loader /> 加载中</span>}
+          </div>
+
+          <div style={{ padding: 12, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
             {store.isLoadingFiles ? (
-              <div className="flex items-center justify-center py-12">
-                <Icons.Loading />
-                <span className="ml-2 text-neutral-500">加载中...</span>
+              <div className="empty-state">
+                <Icons.Loader />
+                <div style={{ marginTop: 10 }}>正在读取目录</div>
               </div>
             ) : store.currentFiles.length > 0 ? (
               store.currentFiles.map((file, index) => (
-                <MusicFileCard
+                <FileRow
                   key={`${file.path}-${index}`}
                   file={file}
+                  selected={store.selectedFile?.path === file.path}
                   onClick={handleFileClick}
-                  isSelected={store.selectedFile?.path === file.path}
                 />
               ))
             ) : (
-              <div className="flex flex-col items-center justify-center py-12 text-neutral-400">
-                <Icons.Music />
-                <p className="mt-2">选择文件夹查看音乐文件</p>
-                <p className="text-sm">支持 MP3、FLAC、M4A、APE、OGG、WAV 格式</p>
+              <div className="empty-state">
+                <Icons.File />
+                <div style={{ marginTop: 10, fontWeight: 850, color: 'var(--ink)' }}>没有可展示的音乐文件</div>
+                <div style={{ marginTop: 4, fontSize: 13 }}>支持 MP3、FLAC、M4A、APE、OGG、WAV。</div>
               </div>
             )}
           </div>
         </div>
 
-        {/* 右侧 - 文件详情面板 */}
         {store.fileDetailVisible && (
           <FileDetailPanel
             file={store.selectedFile}
-            onClose={handleCloseDetail}
+            onClose={() => store.closeFileDetail()}
           />
         )}
-      </div>
+      </section>
     </div>
   );
 }

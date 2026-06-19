@@ -1,229 +1,220 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import useAppStore from '../stores/appStore';
 import { useQtBridge } from '../bridge';
 
-// SVG Icons
+const Icon = ({ children }) => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    {children}
+  </svg>
+);
+
 const Icons = {
   Folder: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-    </svg>
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.5 7.5A2.5 2.5 0 016 5h4l2 2h6a2.5 2.5 0 012.5 2.5v7A2.5 2.5 0 0118 19H6a2.5 2.5 0 01-2.5-2.5v-9z" />
+    </Icon>
   ),
   Music: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-    </svg>
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.1-1.3 2-3 2s-3-.9-3-2 1.3-2 3-2 3 .9 3 2zm12-3c0 1.1-1.3 2-3 2s-3-.9-3-2 1.3-2 3-2 3 .9 3 2zM9 10l12-3" />
+    </Icon>
   ),
-  Language: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-    </svg>
+  Text: () => (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h12M8 4v2m2 10c-2.2-1.6-3.8-3.6-4.8-6M18 20l-3-7-3 7M13 17h4" />
+    </Icon>
   ),
-  Image: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-    </svg>
+  Cover: () => (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7a3 3 0 013-3h10a3 3 0 013 3v10a3 3 0 01-3 3H7a3 3 0 01-3-3V7z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 15l2.6-2.6a1.5 1.5 0 012.1 0L16 15M15 9h.01" />
+    </Icon>
   ),
-  Cog: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
+  Database: () => (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zM4 7v5c0 1.7 3.6 3 8 3s8-1.3 8-3V7M4 12v5c0 1.7 3.6 3 8 3s8-1.3 8-3v-5" />
+    </Icon>
+  ),
+  Check: () => (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    </Icon>
   ),
 };
 
-// 设置项组件
-function SettingItem({ icon: Icon, title, description, children }) {
+function Toggle({ checked, onChange }) {
   return (
-    <div className="flex items-start gap-4 py-4 border-b border-neutral-100 last:border-0">
-      <div className="p-2 bg-neutral-100 rounded-lg text-neutral-600">
-        <Icon />
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      style={{
+        width: 44,
+        height: 24,
+        border: 'none',
+        borderRadius: 999,
+        padding: 3,
+        background: checked ? 'var(--groove)' : 'var(--line)',
+        cursor: 'pointer',
+      }}
+      aria-pressed={checked}
+    >
+      <span
+        style={{
+          display: 'block',
+          width: 18,
+          height: 18,
+          borderRadius: '50%',
+          background: '#fffdf7',
+          transform: checked ? 'translateX(20px)' : 'translateX(0)',
+          transition: 'transform 160ms ease',
+        }}
+      />
+    </button>
+  );
+}
+
+function SettingRow({ icon: IconComponent, title, description, children }) {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '34px minmax(0, 1fr) auto',
+        gap: 12,
+        alignItems: 'center',
+        padding: '15px 0',
+        borderBottom: '1px solid var(--line)',
+      }}
+    >
+      <span className="chip chip-blue" style={{ width: 34, height: 34, padding: 0, justifyContent: 'center' }}>
+        <IconComponent />
+      </span>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontWeight: 850, color: 'var(--ink)' }}>{title}</div>
+        <div style={{ marginTop: 3, color: 'var(--muted)', fontSize: 12 }}>{description}</div>
       </div>
-      <div className="flex-1">
-        <h3 className="font-medium text-neutral-900">{title}</h3>
-        <p className="text-sm text-neutral-500 mt-0.5">{description}</p>
-        {children && <div className="mt-3">{children}</div>}
-      </div>
+      {children}
     </div>
   );
 }
 
-// 开关组件
-function Toggle({ checked, onChange }) {
+function SettingsGroup({ title, description, children }) {
   return (
-    <button
-      onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-        checked ? 'bg-primary-600' : 'bg-neutral-200'
-      }`}
-    >
-      <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-          checked ? 'translate-x-6' : 'translate-x-1'
-        }`}
-      />
-    </button>
+    <section className="panel" style={{ overflow: 'hidden' }}>
+      <div className="panel-header">
+        <div>
+          <h2 className="panel-title">{title}</h2>
+          <p className="panel-subtitle">{description}</p>
+        </div>
+      </div>
+      <div style={{ padding: '0 18px' }}>
+        {children}
+      </div>
+    </section>
   );
 }
 
 export default function Settings() {
   const { config, updateConfig } = useAppStore();
   const { updateConfig: updateQtConfig } = useQtBridge();
-  const [settings, setSettings] = useState({
-    enableCoverDownload: true,
-    enableSimplifiedChinese: true,
-    enableDuplicateCheck: true,
-    enableFilenameParse: true,
-    enableMetadataScrape: true,
-    autoOrganize: true,
-    preserveOriginal: true,
-    threads: 4,
-  });
+  const [settings, setSettings] = useState(config);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setSettings(config);
+  }, [config]);
 
   const handleToggle = (key) => {
-    setSettings(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
+    setSaved(false);
+    setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleThreads = (value) => {
+    setSaved(false);
+    setSettings((prev) => ({ ...prev, threads: parseInt(value, 10) }));
   };
 
   const handleSave = async () => {
     updateConfig(settings);
     await updateQtConfig(settings);
-    alert('设置已保存');
+    setSaved(true);
   };
 
   return (
-    <div className="p-8 animate-fadeIn">
-      {/* 标题 */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-neutral-900 mb-2">偏好设置</h1>
-        <p className="text-neutral-500">自定义音乐整理工具的行为和外观</p>
-      </div>
+    <div className="page page-narrow animate-fadeIn">
+      <header className="page-header">
+        <div>
+          <p className="page-kicker">Preferences</p>
+          <h1 className="page-title">系统设置</h1>
+          <p className="page-copy">
+            设置默认处理规则和输出策略；新建刮削任务时会沿用这里的偏好。
+          </p>
+        </div>
+        <div className="toolbar">
+          {saved && <span className="chip chip-green"><Icons.Check /> 已保存</span>}
+          <button type="button" onClick={handleSave} className="btn btn-primary">保存设置</button>
+        </div>
+      </header>
 
-      {/* 设置分组 */}
-      <div className="space-y-6">
-        {/* 处理选项 */}
-        <div className="bg-white rounded-2xl p-6 border border-neutral-100 shadow-sm">
-          <h2 className="text-lg font-semibold text-neutral-900 mb-4 flex items-center gap-2">
-            <Icons.Cog />
-            处理选项
-          </h2>
-          
-          <SettingItem
-            icon={Icons.Image}
-            title="自动下载封面"
-            description="从 MusicBrainz 自动下载并嵌入专辑封面"
-          >
-            <Toggle 
-              checked={settings.enableCoverDownload} 
-              onChange={() => handleToggle('enableCoverDownload')} 
-            />
-          </SettingItem>
+      <div className="settings-grid">
+        <div style={{ display: 'grid', gap: 16 }}>
+          <SettingsGroup title="处理偏好" description="决定默认启用哪些清洗和刮削动作">
+            <SettingRow icon={Icons.Cover} title="自动下载封面" description="从可用来源获取专辑封面并写入文件">
+              <Toggle checked={settings.enableCoverDownload} onChange={() => handleToggle('enableCoverDownload')} />
+            </SettingRow>
+            <SettingRow icon={Icons.Text} title="繁简转换" description="将台湾/香港繁体歌词转换为大陆简体">
+              <Toggle checked={settings.enableSimplifiedChinese} onChange={() => handleToggle('enableSimplifiedChinese')} />
+            </SettingRow>
+            <SettingRow icon={Icons.Database} title="元数据刮削" description="从 MusicBrainz 补全歌曲、专辑和年份">
+              <Toggle checked={settings.enableMetadataScrape} onChange={() => handleToggle('enableMetadataScrape')} />
+            </SettingRow>
+            <SettingRow icon={Icons.Music} title="文件名解析" description="从文件名提取艺人和歌曲标题">
+              <Toggle checked={settings.enableFilenameParse} onChange={() => handleToggle('enableFilenameParse')} />
+            </SettingRow>
+          </SettingsGroup>
 
-          <SettingItem
-            icon={Icons.Language}
-            title="繁简转换"
-            description="将台湾/香港繁体歌词转换为大陆简体"
-          >
-            <Toggle 
-              checked={settings.enableSimplifiedChinese} 
-              onChange={() => handleToggle('enableSimplifiedChinese')} 
-            />
-          </SettingItem>
-
-          <SettingItem
-            icon={Icons.Cog}
-            title="重复检测"
-            description="检测并跳过重复文件，避免重复处理"
-          >
-            <Toggle 
-              checked={settings.enableDuplicateCheck} 
-              onChange={() => handleToggle('enableDuplicateCheck')} 
-            />
-          </SettingItem>
-
-          <SettingItem
-            icon={Icons.Music}
-            title="文件名解析"
-            description="从文件名中提取歌手和歌曲信息"
-          >
-            <Toggle 
-              checked={settings.enableFilenameParse} 
-              onChange={() => handleToggle('enableFilenameParse')} 
-            />
-          </SettingItem>
+          <SettingsGroup title="输出策略" description="决定文件如何复制、保留和组织">
+            <SettingRow icon={Icons.Database} title="重复检测" description="跳过已处理的相同文件">
+              <Toggle checked={settings.enableDuplicateCheck} onChange={() => handleToggle('enableDuplicateCheck')} />
+            </SettingRow>
+            <SettingRow icon={Icons.Folder} title="自动整理" description="按「歌手/专辑」结构保存输出文件">
+              <Toggle checked={settings.autoOrganize} onChange={() => handleToggle('autoOrganize')} />
+            </SettingRow>
+            <SettingRow icon={Icons.Folder} title="保留原文件" description="处理时复制文件，不直接覆盖来源目录">
+              <Toggle checked={settings.preserveOriginal} onChange={() => handleToggle('preserveOriginal')} />
+            </SettingRow>
+          </SettingsGroup>
         </div>
 
-        {/* 输出选项 */}
-        <div className="bg-white rounded-2xl p-6 border border-neutral-100 shadow-sm">
-          <h2 className="text-lg font-semibold text-neutral-900 mb-4 flex items-center gap-2">
-            <Icons.Folder />
-            输出选项
-          </h2>
-
-          <SettingItem
-            icon={Icons.Folder}
-            title="自动整理"
-            description="按「歌手/专辑」结构自动整理文件"
-          >
-            <Toggle 
-              checked={settings.autoOrganize} 
-              onChange={() => handleToggle('autoOrganize')} 
-            />
-          </SettingItem>
-
-          <SettingItem
-            icon={Icons.Folder}
-            title="保留原文件"
-            description="处理时保留原始文件，不直接修改"
-          >
-            <Toggle 
-              checked={settings.preserveOriginal} 
-              onChange={() => handleToggle('preserveOriginal')} 
-            />
-          </SettingItem>
-
-          <SettingItem
-            icon={Icons.Cog}
-            title="处理线程数"
-            description="同时处理的文件数量，建议根据 CPU 核心数设置"
-          >
-            <div className="flex items-center gap-4">
-              <input
-                type="range"
-                min="1"
-                max="16"
-                value={settings.threads}
-                onChange={(e) => setSettings(prev => ({ ...prev, threads: parseInt(e.target.value) }))}
-                className="w-32 h-2 bg-neutral-100 rounded-lg appearance-none cursor-pointer accent-primary-600"
-              />
-              <span className="text-sm font-medium text-neutral-900 w-8">{settings.threads}</span>
-            </div>
-          </SettingItem>
-        </div>
-
-        {/* 支持格式 */}
-        <div className="bg-white rounded-2xl p-6 border border-neutral-100 shadow-sm">
-          <h2 className="text-lg font-semibold text-neutral-900 mb-4">支持格式</h2>
-          <div className="flex flex-wrap gap-2">
-            {['.mp3', '.flac', '.m4a', '.ape', '.ogg', '.wav'].map(format => (
-              <span key={format} className="px-3 py-1.5 bg-neutral-100 text-neutral-700 text-sm rounded-lg">
-                {format}
-              </span>
-            ))}
+        <aside className="panel" style={{ padding: 18 }}>
+          <h2 className="panel-title" style={{ marginBottom: 14 }}>任务性能</h2>
+          <div className="waveform" style={{ marginBottom: 18 }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ color: 'var(--muted)', fontWeight: 800 }}>默认线程数</span>
+            <span className="chip chip-amber">{settings.threads}</span>
           </div>
-        </div>
-      </div>
+          <input
+            type="range"
+            min="1"
+            max="16"
+            value={settings.threads}
+            onChange={(e) => handleThreads(e.target.value)}
+            style={{ width: '100%', accentColor: 'var(--groove)' }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--muted)', fontSize: 12, marginTop: 5 }}>
+            <span>1</span>
+            <span>8</span>
+            <span>16</span>
+          </div>
 
-      {/* 保存按钮 */}
-      <div className="mt-8 flex justify-end">
-        <button
-          onClick={handleSave}
-          className="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-xl transition-colors"
-        >
-          保存设置
-        </button>
+          <div style={{ marginTop: 22 }}>
+            <h3 className="panel-title" style={{ marginBottom: 10 }}>支持格式</h3>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {['.mp3', '.flac', '.m4a', '.ape', '.ogg', '.wav'].map((format) => (
+                <span key={format} className="chip">{format}</span>
+              ))}
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   );

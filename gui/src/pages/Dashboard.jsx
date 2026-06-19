@@ -2,14 +2,12 @@ import React, { useEffect, useState } from 'react';
 import useAppStore from '../stores/appStore';
 import { useQtBridge } from '../bridge';
 
-// 从路径中取末级名称作为任务标题
 function basename(p) {
   if (!p) return '';
   const parts = String(p).split(/[\\/]/).filter(Boolean);
   return parts[parts.length - 1] || String(p);
 }
 
-// 字节数转人类可读
 function formatBytes(n) {
   if (!n) return '0 B';
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -22,392 +20,203 @@ function formatBytes(n) {
   return `${v.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
-// 把后端 task 记录映射为「近期任务」卡片数据
 function mapTask(t) {
   const total = t.total || 0;
   const success = t.success || 0;
+  const failed = t.failed || 0;
   let progress = 0;
   if (t.status === 'completed' || t.status === 'cancelled') progress = 100;
   else if (total > 0) progress = Math.round((success / total) * 100);
+
   return {
-    title: basename(t.input_path) || '任务',
-    date: (t.started_at || '').replace('T', ' '),
+    title: basename(t.input_path) || '音乐整理任务',
+    date: (t.started_at || t.created_at || '').replace('T', ' '),
     progress,
-    songCount: String(success || total || 0),
-    status: t.status === 'running' ? 'running'
-      : (t.status === 'completed' ? 'completed' : 'in_progress'),
+    songCount: success || total || 0,
+    failed,
+    status: t.status || 'pending',
   };
 }
 
-// SVG Icons
+const Icon = ({ children }) => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    {children}
+  </svg>
+);
+
 const Icons = {
-  MusicNote: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-    </svg>
+  Music: () => (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.1-1.3 2-3 2s-3-.9-3-2 1.3-2 3-2 3 .9 3 2zm12-3c0 1.1-1.3 2-3 2s-3-.9-3-2 1.3-2 3-2 3 .9 3 2zM9 10l12-3" />
+    </Icon>
   ),
   Check: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    </Icon>
   ),
-  Cloud: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
-    </svg>
+  Storage: () => (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v5c0 1.7 3.6 3 8 3s8-1.3 8-3V7M4 12v5c0 1.7 3.6 3 8 3s8-1.3 8-3v-5" />
+    </Icon>
   ),
-  Clock: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
+  Queue: () => (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h10M4 18h7" />
+    </Icon>
   ),
-  Search: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-    </svg>
-  ),
-  Bell: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-    </svg>
-  ),
-  ArrowDown: () => (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-    </svg>
-  ),
-  ChevronRight: () => (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  Arrow: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
     </svg>
   ),
-  Running: () => (
-    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 8 8">
-      <circle cx="4" cy="4" r="3" />
-    </svg>
+  Folder: () => (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.5 7.5A2.5 2.5 0 016 5h4l2 2h6a2.5 2.5 0 012.5 2.5v7A2.5 2.5 0 0118 19H6a2.5 2.5 0 01-2.5-2.5v-9z" />
+    </Icon>
   ),
 };
 
-// 统计卡片组件
-function StatCard({ icon: Icon, label, value, subtext, color = 'blue' }) {
-  const colorStyles = {
-    green: { bg: '#ECFDF5', text: '#10B981', border: '#D1FAE5' },
-    purple: { bg: '#F5F3FF', text: '#9333EA', border: '#EDE9FE' },
-    orange: { bg: '#FEF7ED', text: '#EA580C', border: '#FDE8D8' },
-  };
-  const c = colorStyles[color] || colorStyles.blue;
+function StatCard({ icon: IconComponent, label, value, note, tone = 'blue' }) {
+  const toneClass = {
+    green: 'chip-green',
+    amber: 'chip-amber',
+    red: 'chip-red',
+    blue: 'chip-blue',
+  }[tone] || 'chip-blue';
 
   return (
-    <div style={{
-      background: '#FFFFFF',
-      borderRadius: '12px',
-      padding: '20px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-      border: '1px solid #F0F0F0',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#6B7280' }}>
-        <Icon />
-        <span style={{ fontSize: '14px' }}>{label}</span>
+    <section className="metric-card">
+      <div className="metric-label">
+        <span className={`chip ${toneClass}`} style={{ width: 30, height: 30, padding: 0, justifyContent: 'center' }}>
+          <IconComponent />
+        </span>
+        {label}
       </div>
-      <div style={{ fontSize: '28px', fontWeight: 700, color: '#1F2937' }}>{value}</div>
-      {subtext && <div style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '4px' }}>{subtext}</div>}
-    </div>
+      <div className="metric-value">{value}</div>
+      {note && <div className="metric-note">{note}</div>}
+    </section>
   );
 }
 
-// 刮削活跃度图表组件
 function ActivityChart({ data }) {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const maxValue = Math.max(...days.map(d => data[d] || 0), 1000);
-  const chartHeight = 160;
-  const barWidth = 32;
-  const gap = 12;
+  const labels = {
+    Mon: '一',
+    Tue: '二',
+    Wed: '三',
+    Thu: '四',
+    Fri: '五',
+    Sat: '六',
+    Sun: '日',
+  };
+  const maxValue = Math.max(...days.map((day) => data[day] || 0), 1);
 
   return (
-    <div style={{
-      background: '#FFFFFF',
-      borderRadius: '12px',
-      padding: '20px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-      border: '1px solid #F0F0F0',
-    }}>
-      {/* 标题栏 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <span style={{ fontSize: '16px', fontWeight: 600, color: '#1F2937' }}>刮削活跃度</span>
-        <button style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-          padding: '4px 8px',
-          background: '#F5F5F5',
-          border: 'none',
-          borderRadius: '6px',
-          cursor: 'pointer',
-          fontSize: '13px',
-          color: '#6B7280',
-        }}>
-          本周 <Icons.ArrowDown />
-        </button>
-      </div>
-
-      {/* 图表区域 */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'flex-end',
-        justifyContent: 'space-between',
-        height: `${chartHeight + 30}px`,
-        position: 'relative',
-      }}>
-        {/* Y轴标签 */}
-        <div style={{
-          position: 'absolute',
-          left: '-30px',
-          top: '0',
-          bottom: '30px',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          fontSize: '11px',
-          color: '#9CA3AF',
-        }}>
-          <span>1000</span>
-          <span>750</span>
-          <span>500</span>
-          <span>250</span>
-          <span>0</span>
+    <section className="panel" style={{ overflow: 'hidden' }}>
+      <div className="panel-header">
+        <div>
+          <h2 className="panel-title">刮削活跃度</h2>
+          <p className="panel-subtitle">最近 7 天处理量</p>
         </div>
-
-        {/* 柱状图 */}
-        <div style={{
-          display: 'flex',
-          gap: `${gap}px`,
-          marginLeft: '20px',
-          alignItems: 'flex-end',
-        }}>
-          {days.map((day, index) => {
+        <span className="chip chip-blue">本周</span>
+      </div>
+      <div style={{ padding: 18 }}>
+        <div className="waveform" style={{ marginBottom: 18 }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 10, alignItems: 'end', height: 170 }}>
+          {days.map((day) => {
             const value = data[day] || 0;
-            const height = (value / maxValue) * chartHeight;
+            const height = Math.max((value / maxValue) * 132, 8);
+
             return (
-              <div key={day} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+              <div key={day} style={{ minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
                 <div
-                  style={{
-                    width: `${barWidth}px`,
-                    height: `${Math.max(height, 4)}px`,
-                    background: '#6366F1',
-                    borderRadius: '4px 4px 0 0',
-                    transition: 'height 0.3s ease',
-                  }}
                   title={`${day}: ${value}`}
+                  style={{
+                    width: '100%',
+                    maxWidth: 44,
+                    height,
+                    borderRadius: 6,
+                    background: value > 0 ? 'linear-gradient(180deg, var(--groove), #3d8583)' : 'rgba(222, 212, 195, 0.72)',
+                    border: '1px solid rgba(22, 20, 19, 0.08)',
+                  }}
                 />
-                <span style={{ fontSize: '12px', color: '#9CA3AF' }}>{day}</span>
+                <span style={{ color: 'var(--muted)', fontSize: 12 }}>{labels[day]}</span>
               </div>
             );
           })}
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
-// 近期任务卡片组件
-function RecentTasksCard({ tasks }) {
-  return (
-    <div style={{
-      background: '#FFFFFF',
-      borderRadius: '12px',
-      padding: '20px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-      border: '1px solid #F0F0F0',
-    }}>
-      {/* 标题栏 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <span style={{ fontSize: '16px', fontWeight: 600, color: '#1F2937' }}>近期任务</span>
-        <a href="#" style={{
-          fontSize: '13px',
-          color: '#6366F1',
-          textDecoration: 'none',
-          cursor: 'pointer',
-        }}>
-          查看全部任务
-        </a>
-      </div>
+function RecentTasksCard({ tasks, onViewAll }) {
+  const hasTasks = tasks.length > 0;
 
-      {/* 任务列表 */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+  return (
+    <section className="panel">
+      <div className="panel-header">
+        <div>
+          <h2 className="panel-title">近期任务</h2>
+          <p className="panel-subtitle">完成、失败和正在处理的批次</p>
+        </div>
+        <button type="button" className="btn btn-ghost" onClick={onViewAll}>
+          查看资源库
+        </button>
+      </div>
+      <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {!hasTasks && (
+          <div className="empty-state" style={{ minHeight: 220 }}>
+            <Icons.Folder />
+            <div style={{ marginTop: 10, fontWeight: 800, color: 'var(--ink)' }}>还没有处理记录</div>
+            <div style={{ marginTop: 4, fontSize: 13 }}>选择音乐目录后，这里会显示最近的刮削批次。</div>
+          </div>
+        )}
+
         {tasks.map((task, index) => {
-          // 确定进度条颜色
-          let progressBarColor = '#10B981'; // 绿色 - 完成
-          let statusBadge = null;
-          
-          if (task.status === 'running') {
-            progressBarColor = '#3B82F6'; // 蓝色 - 进行中
-            statusBadge = (
-              <span style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '2px 8px',
-                background: '#EFF6FF',
-                borderRadius: '4px',
-                fontSize: '11px',
-                color: '#3B82F6',
-              }}>
-                <Icons.Running /> 正在运行
-              </span>
-            );
-          } else if (task.progress < 30) {
-            progressBarColor = '#EF4444'; // 红色 - 低进度
-          }
+          const isRunning = task.status === 'running' || task.status === 'processing';
+          const statusClass = task.failed > 0 ? 'chip-red' : (isRunning ? 'chip-blue' : 'chip-green');
+          const statusText = task.failed > 0 ? `${task.failed} 失败` : (isRunning ? '处理中' : '完成');
 
           return (
-            <div key={index} style={{ padding: '12px', background: '#FAFAFA', borderRadius: '8px' }}>
-              {/* 任务标题和状态 */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontSize: '14px', fontWeight: 500, color: '#1F2937' }}>{task.title}</span>
-                <span style={{ fontSize: '12px', color: '#6B7280' }}>{task.progress}%</span>
+            <article key={`${task.title}-${index}`} className="panel" style={{ boxShadow: 'none', padding: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div className="truncate-1" style={{ fontWeight: 850, color: 'var(--ink)' }}>{task.title}</div>
+                  <div className="truncate-1" style={{ marginTop: 4, color: 'var(--muted)', fontSize: 12 }}>{task.date || '未记录时间'}</div>
+                </div>
+                <span className={`chip ${statusClass}`}>{statusText}</span>
               </div>
-              
-              {/* 日期和状态标签 */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <span style={{ fontSize: '12px', color: '#9CA3AF' }}>{task.date}</span>
-                {statusBadge}
-              </div>
-              
-              {/* 进度条 */}
-              <div style={{
-                width: '100%',
-                height: '6px',
-                background: '#E5E5E5',
-                borderRadius: '3px',
-                overflow: 'hidden',
-              }}>
+              <div style={{ marginTop: 12, height: 7, borderRadius: 999, overflow: 'hidden', background: 'rgba(222, 212, 195, 0.72)' }}>
                 <div
                   style={{
                     width: `${task.progress}%`,
                     height: '100%',
-                    background: progressBarColor,
-                    borderRadius: '3px',
-                    transition: 'width 0.3s ease',
+                    background: task.failed > 0 ? 'var(--red)' : 'var(--groove)',
                   }}
                 />
               </div>
-              
-              {/* 歌曲数量 */}
-              <div style={{ marginTop: '8px', fontSize: '12px', color: '#9CA3AF' }}>
-                {task.songCount} 首歌
+              <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', color: 'var(--muted)', fontSize: 12 }}>
+                <span>{task.songCount} 首歌</span>
+                <span>{task.progress}%</span>
               </div>
-            </div>
+            </article>
           );
         })}
       </div>
-    </div>
-  );
-}
-
-// 顶部搜索栏组件
-function TopBar() {
-  return (
-    <div style={{
-      height: '64px',
-      background: '#FFFFFF',
-      borderBottom: '1px solid #F0F0F0',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '0 24px',
-    }}>
-      {/* 搜索框 */}
-      <div style={{
-        position: 'relative',
-        width: '360px',
-      }}>
-        <div style={{
-          position: 'absolute',
-          left: '14px',
-          top: '50%',
-          transform: 'translateY(-50%)',
-          color: '#9CA3AF',
-        }}>
-          <Icons.Search />
-        </div>
-        <input
-          type="text"
-          placeholder="快速定位任务或文件..."
-          style={{
-            width: '100%',
-            padding: '10px 14px 10px 44px',
-            background: '#F9FAFB',
-            border: '1px solid #E5E5E5',
-            borderRadius: '10px',
-            fontSize: '14px',
-            color: '#1F2937',
-            outline: 'none',
-            boxSizing: 'border-box',
-          }}
-        />
-      </div>
-
-      {/* 右侧用户信息 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-        {/* 通知铃铛 */}
-        <button style={{
-          position: 'relative',
-          padding: '8px',
-          background: 'transparent',
-          border: 'none',
-          cursor: 'pointer',
-          color: '#6B7280',
-        }}>
-          <Icons.Bell />
-          {/* 通知红点 */}
-          <span style={{
-            position: 'absolute',
-            top: '6px',
-            right: '6px',
-            width: '8px',
-            height: '8px',
-            background: '#EF4444',
-            borderRadius: '50%',
-            border: '2px solid #FFFFFF',
-          }} />
-        </button>
-
-        {/* 用户信息 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* 头像 */}
-          <div style={{
-            width: '36px',
-            height: '36px',
-            background: '#F0F2FF',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#6366F1',
-            fontSize: '14px',
-            fontWeight: 600,
-          }}>
-            AD
-          </div>
-          {/* 用户名 */}
-          <span style={{ fontSize: '14px', fontWeight: 500, color: '#1F2937' }}>
-            管理员 / Local Instance
-          </span>
-        </div>
-      </div>
-    </div>
+    </section>
   );
 }
 
 export default function Dashboard() {
   const { setCurrentPage } = useAppStore();
   const { callQt } = useQtBridge();
-
   const [stats, setStats] = useState(null);
   const [weeklyData, setWeeklyData] = useState({});
   const [recentTasks, setRecentTasks] = useState([]);
 
-  // 从 SQLite（经 bridge）加载真实概览数据
   useEffect(() => {
     let active = true;
     (async () => {
@@ -430,80 +239,43 @@ export default function Dashboard() {
     return () => { active = false; };
   }, [callQt]);
 
-  const statsData = {
-    totalSongs: (stats?.total_songs ?? 0).toLocaleString(),
-    successRate: `${stats?.success_rate ?? 0}%`,
-    storage: formatBytes(stats?.total_bytes ?? 0),
-    pendingTasks: String(stats?.pending_tasks ?? 0),
-  };
+  const totalSongs = stats?.total_songs ?? 0;
+  const successRate = stats?.success_rate ?? 0;
+  const failed = stats?.failed ?? 0;
 
   return (
-    <div style={{ background: '#F9FAFB', minHeight: '100%' }}>
-      {/* 顶部栏 */}
-      <TopBar />
-
-      {/* 主内容区 */}
-      <div style={{ padding: '24px' }}>
-        {/* 欢迎语和标题 */}
-        <div style={{ marginBottom: '24px' }}>
-          <h1 style={{ fontSize: '20px', fontWeight: 600, color: '#1F2937', marginBottom: '4px' }}>
-            数据概览
-          </h1>
-          <p style={{ fontSize: '14px', color: '#6B7280' }}>
-            欢迎回来！以下是您音乐库的整体统计信息。
+    <div className="page animate-fadeIn">
+      <header className="page-header">
+        <div>
+          <p className="page-kicker">Music library control</p>
+          <h1 className="page-title">音乐库控制面板</h1>
+          <p className="page-copy">
+            查看刮削结果、处理容量和近期任务状态，从这里继续整理你的本地或网络音乐目录。
           </p>
         </div>
-
-        {/* 统计卡片 */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: '16px',
-          marginBottom: '24px',
-        }}>
-          <StatCard
-            icon={Icons.MusicNote}
-            label="累计处理歌曲"
-            value={statsData.totalSongs}
-            color="blue"
-          />
-          <StatCard
-            icon={Icons.Check}
-            label="成功率"
-            value={statsData.successRate}
-            color="green"
-          />
-          <StatCard
-            icon={Icons.Cloud}
-            label="处理容量"
-            value={statsData.storage}
-            color="purple"
-          />
-          <StatCard
-            icon={Icons.Clock}
-            label="待处理任务"
-            value={statsData.pendingTasks}
-            color="orange"
-          />
+        <div className="toolbar">
+          <button type="button" className="btn btn-secondary" onClick={() => setCurrentPage('files')}>
+            <Icons.Folder />
+            查看资源库
+          </button>
+          <button type="button" className="btn btn-primary" onClick={() => setCurrentPage('scrape')}>
+            新建刮削
+            <Icons.Arrow />
+          </button>
         </div>
+      </header>
 
-        {/* 图表和任务区域 */}
-        <div style={{
-          display: 'flex',
-          gap: '24px',
-          alignItems: 'flex-start',
-        }}>
-          {/* 左侧 - 刮削活跃度图表 (约65%宽度) */}
-          <div style={{ flex: '0 0 65%' }}>
-            <ActivityChart data={weeklyData} />
-          </div>
-
-          {/* 右侧 - 近期任务列表 (约35%宽度) */}
-          <div style={{ flex: '0 0 35%' }}>
-            <RecentTasksCard tasks={recentTasks} />
-          </div>
-        </div>
+      <div className="metric-grid">
+        <StatCard icon={Icons.Music} label="累计歌曲" value={totalSongs.toLocaleString()} note="已写入数据库" tone="blue" />
+        <StatCard icon={Icons.Check} label="成功率" value={`${successRate}%`} note={failed > 0 ? `${failed} 首需复核` : '处理结果稳定'} tone="green" />
+        <StatCard icon={Icons.Storage} label="处理容量" value={formatBytes(stats?.total_bytes ?? 0)} note={`${stats?.total_tasks ?? 0} 个任务批次`} tone="amber" />
+        <StatCard icon={Icons.Queue} label="待处理任务" value={String(stats?.pending_tasks ?? 0)} note="等待或正在运行" tone={(stats?.pending_tasks ?? 0) > 0 ? 'amber' : 'blue'} />
       </div>
+
+      <section className="dashboard-grid">
+        <ActivityChart data={weeklyData} />
+        <RecentTasksCard tasks={recentTasks} onViewAll={() => setCurrentPage('files')} />
+      </section>
     </div>
   );
 }
