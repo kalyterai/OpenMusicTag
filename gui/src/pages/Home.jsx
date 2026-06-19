@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import useAppStore, { useStats } from '../stores/appStore';
+import useAppStore from '../stores/appStore';
 import { useQtBridge } from '../bridge';
 import { formatFileSize } from '../utils/format';
 
@@ -61,28 +61,6 @@ function metadataScore(file) {
   const fields = ['title', 'artist', 'album', 'year', 'genre', 'track'];
   const filled = fields.filter((field) => Boolean(file[field] || file.tags?.[field])).length;
   return Math.round((filled / fields.length) * 100);
-}
-
-function StatStrip({ totalFiles, processedFiles, successCount, failCount }) {
-  const successRate = processedFiles > 0 ? Math.round((successCount / processedFiles) * 100) : 0;
-  const items = [
-    ['已处理', processedFiles.toLocaleString(), '首'],
-    ['库内文件', totalFiles.toLocaleString(), '个'],
-    ['成功率', `${successRate}%`, '写入标签'],
-    ['待复核', failCount.toLocaleString(), '首'],
-  ];
-
-  return (
-    <div className="metric-grid" style={{ marginBottom: 16 }}>
-      {items.map(([label, value, note]) => (
-        <section key={label} className="metric-card" style={{ minHeight: 100 }}>
-          <div className="metric-label">{label}</div>
-          <div className="metric-value" style={{ fontSize: 28 }}>{value}</div>
-          <div className="metric-note">{note}</div>
-        </section>
-      ))}
-    </div>
-  );
 }
 
 function FolderRow({ folder, selected, onClick }) {
@@ -191,7 +169,7 @@ function FileDetailPanel({ file, onClose }) {
   const extraTags = Object.entries(tags).filter(([key]) => !['title', 'artist', 'album', 'year', 'genre', 'track'].includes(key));
 
   return (
-    <aside className="panel animate-slideIn library-detail" style={{ minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <section className="library-inspector animate-slideIn">
       <div className="panel-header">
         <div style={{ minWidth: 0 }}>
           <h2 className="panel-title truncate-1">元数据检查</h2>
@@ -202,17 +180,19 @@ function FileDetailPanel({ file, onClose }) {
         </button>
       </div>
 
-      <div style={{ padding: 16, overflowY: 'auto' }}>
-        <div className="waveform" style={{ height: 96, marginBottom: 14 }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <span className={score >= 70 ? 'chip chip-green' : 'chip chip-amber'}>
-            <Icons.Check />
-            标签完整度 {score}%
-          </span>
-          <span className={`chip ${extTone(file.ext)}`}>{(file.ext || 'file').toUpperCase()}</span>
+      <div className="library-inspector-body">
+        <div className="library-inspector-hero">
+          <div className="waveform" />
+          <div className="library-inspector-badges">
+            <span className={score >= 70 ? 'chip chip-green' : 'chip chip-amber'}>
+              <Icons.Check />
+              标签完整度 {score}%
+            </span>
+            <span className={`chip ${extTone(file.ext)}`}>{(file.ext || 'file').toUpperCase()}</span>
+          </div>
         </div>
 
-        <div style={{ display: 'grid', gap: 10 }}>
+        <div className="detail-grid">
           <DetailField label="标题" value={file.title || tags.title} />
           <DetailField label="艺人" value={file.artist || tags.artist} />
           <DetailField label="专辑" value={file.album || tags.album} />
@@ -235,12 +215,11 @@ function FileDetailPanel({ file, onClose }) {
           </div>
         )}
       </div>
-    </aside>
+    </section>
   );
 }
 
 export default function Home() {
-  const { totalFiles, processedFiles, successCount, failCount } = useStats();
   const store = useAppStore();
   const {
     getMusicFileDetails,
@@ -308,6 +287,8 @@ export default function Home() {
     }
   };
 
+  const hasLibraryRoot = Boolean(store.currentPath || store.subFolders.length > 0 || store.currentFiles.length > 0);
+
   return (
     <div className="page animate-fadeIn">
       <header className="page-header">
@@ -319,22 +300,19 @@ export default function Home() {
           </p>
         </div>
         <div className="toolbar">
-          <span className="chip chip-blue">MP3</span>
-          <span className="chip chip-green">FLAC</span>
-          <span className="chip chip-amber">M4A</span>
-          <span className="chip">APE / OGG / WAV</span>
+          {store.currentPath && (
+            <span className="chip mono chip-blue" title={store.currentPath}>
+              {store.currentPath.split(/[\\/]/).filter(Boolean).pop() || store.currentPath}
+            </span>
+          )}
+          <button type="button" className="btn btn-primary" onClick={handleChooseRoot}>
+            选择文件夹
+          </button>
         </div>
       </header>
 
-      <StatStrip
-        totalFiles={totalFiles}
-        processedFiles={processedFiles}
-        successCount={successCount}
-        failCount={failCount}
-      />
-
-      {!store.currentPath && store.subFolders.length === 0 && store.currentFiles.length === 0 && (
-        <section className="panel" style={{ padding: 18, marginBottom: 16 }}>
+      {!hasLibraryRoot && (
+        <section className="panel library-start-panel">
           <div className="empty-state" style={{ minHeight: 220 }}>
             <Icons.Folder />
             <div style={{ marginTop: 10, fontWeight: 850, color: 'var(--ink)' }}>选择一个音乐根目录</div>
@@ -348,90 +326,99 @@ export default function Home() {
         </section>
       )}
 
-      <section className={`library-grid ${store.fileDetailVisible ? 'has-detail' : ''}`}>
-        <div className="panel" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">目录结构</h2>
-              <p className="panel-subtitle">逐层选择歌手、专辑或文件夹</p>
+      {hasLibraryRoot && (
+        <section className="library-workbench">
+          <div className="panel library-directory-panel">
+            <div className="panel-header">
+              <div>
+                <h2 className="panel-title">目录结构</h2>
+                <p className="panel-subtitle">逐层选择歌手、专辑或文件夹</p>
+              </div>
+            </div>
+            <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--line)' }}>
+              <div className="mono truncate-1" style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 8 }}>
+                {store.currentPath || '未选择目录'}
+              </div>
+              {store.currentPath ? (
+                <button type="button" className="btn btn-secondary" style={{ width: '100%', marginBottom: 8 }} onClick={handleParentClick}>
+                  返回上一级
+                </button>
+              ) : (
+                <button type="button" className="btn btn-primary" style={{ width: '100%' }} onClick={handleChooseRoot}>
+                  选择文件夹
+                </button>
+              )}
+              {store.currentPath && (
+                <button type="button" className="btn btn-ghost" style={{ width: '100%' }} onClick={handleChooseRoot}>
+                  切换根目录
+                </button>
+              )}
+            </div>
+            <div style={{ padding: 12, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {store.subFolders.length > 0 ? (
+                store.subFolders.map((folder) => (
+                  <FolderRow
+                    key={folder.path}
+                    folder={folder}
+                    selected={selectedFolder === folder.path}
+                    onClick={handleFolderClick}
+                  />
+                ))
+              ) : (
+                <div className="empty-state">
+                  <Icons.Folder />
+                  <div style={{ marginTop: 10 }}>{store.currentPath ? '当前目录没有子目录' : '请选择音乐根目录'}</div>
+                </div>
+              )}
             </div>
           </div>
-          <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--line)' }}>
-            <div className="mono truncate-1" style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 8 }}>
-              {store.currentPath || '未选择目录'}
+
+          <div className="library-main-stack">
+            <div className="panel library-files-panel">
+              <div className="panel-header">
+                <div>
+                  <h2 className="panel-title">待处理文件</h2>
+                  <p className="panel-subtitle">
+                    {store.currentFiles.length > 0 ? `${store.currentFiles.length} 首位于当前目录` : '选择目录后显示当前层文件'}
+                  </p>
+                </div>
+                {loadingPath && <span className="chip chip-blue"><Icons.Loader /> 加载中</span>}
+              </div>
+
+              <div style={{ padding: 12, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {store.isLoadingFiles ? (
+                  <div className="empty-state">
+                    <Icons.Loader />
+                    <div style={{ marginTop: 10 }}>正在读取目录</div>
+                  </div>
+                ) : store.currentFiles.length > 0 ? (
+                  store.currentFiles.map((file, index) => (
+                    <FileRow
+                      key={`${file.path}-${index}`}
+                      file={file}
+                      selected={store.selectedFile?.path === file.path}
+                      onClick={handleFileClick}
+                    />
+                  ))
+                ) : (
+                  <div className="empty-state">
+                    <Icons.File />
+                    <div style={{ marginTop: 10, fontWeight: 850, color: 'var(--ink)' }}>没有可展示的音乐文件</div>
+                    <div style={{ marginTop: 4, fontSize: 13 }}>支持 MP3、FLAC、M4A、APE、OGG、WAV。</div>
+                  </div>
+                )}
+              </div>
             </div>
-            {store.currentPath ? (
-              <button type="button" className="btn btn-secondary" style={{ width: '100%' }} onClick={handleParentClick}>
-                返回上一级
-              </button>
-            ) : (
-              <button type="button" className="btn btn-primary" style={{ width: '100%' }} onClick={handleChooseRoot}>
-                选择文件夹
-              </button>
+
+            {store.fileDetailVisible && (
+              <FileDetailPanel
+                file={store.selectedFile}
+                onClose={() => store.closeFileDetail()}
+              />
             )}
           </div>
-          <div style={{ padding: 12, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {store.subFolders.length > 0 ? (
-              store.subFolders.map((folder) => (
-                <FolderRow
-                  key={folder.path}
-                  folder={folder}
-                  selected={selectedFolder === folder.path}
-                  onClick={handleFolderClick}
-                />
-              ))
-            ) : (
-              <div className="empty-state">
-                <Icons.Folder />
-                <div style={{ marginTop: 10 }}>{store.currentPath ? '当前目录没有子目录' : '请选择音乐根目录'}</div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="panel" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">待处理文件</h2>
-              <p className="panel-subtitle">
-                {store.currentFiles.length > 0 ? `${store.currentFiles.length} 首位于当前目录` : '选择目录后显示当前层文件'}
-              </p>
-            </div>
-            {loadingPath && <span className="chip chip-blue"><Icons.Loader /> 加载中</span>}
-          </div>
-
-          <div style={{ padding: 12, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {store.isLoadingFiles ? (
-              <div className="empty-state">
-                <Icons.Loader />
-                <div style={{ marginTop: 10 }}>正在读取目录</div>
-              </div>
-            ) : store.currentFiles.length > 0 ? (
-              store.currentFiles.map((file, index) => (
-                <FileRow
-                  key={`${file.path}-${index}`}
-                  file={file}
-                  selected={store.selectedFile?.path === file.path}
-                  onClick={handleFileClick}
-                />
-              ))
-            ) : (
-              <div className="empty-state">
-                <Icons.File />
-                <div style={{ marginTop: 10, fontWeight: 850, color: 'var(--ink)' }}>没有可展示的音乐文件</div>
-                <div style={{ marginTop: 4, fontSize: 13 }}>支持 MP3、FLAC、M4A、APE、OGG、WAV。</div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {store.fileDetailVisible && (
-          <FileDetailPanel
-            file={store.selectedFile}
-            onClose={() => store.closeFileDetail()}
-          />
-        )}
-      </section>
+        </section>
+      )}
     </div>
   );
 }
