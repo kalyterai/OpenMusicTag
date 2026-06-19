@@ -55,10 +55,13 @@ class MusicOrganizerPipeline:
                  on_log: Callable[[str, str], None] = None,
                  on_success: Callable[[dict], None] = None,
                  on_error: Callable[[str], None] = None,
-                 cancel_event: Optional[threading.Event] = None):
+                 cancel_event: Optional[threading.Event] = None,
+                 storage=None):
         self.config = config
         self.pipeline = self._build_pipeline()
         self.cancel_event = cancel_event
+        # 可选的持久化层（None 则不记录，便于 CLI/测试）
+        self.storage = storage
         
         # GUI 回调函数
         self.on_progress = on_progress or (lambda *args: None)
@@ -130,6 +133,32 @@ class MusicOrganizerPipeline:
 
         return audio_file.output_path, False
 
+    @staticmethod
+    def _file_size(path: Path) -> int:
+        try:
+            return path.stat().st_size
+        except OSError:
+            return 0
+
+    def _record_song(self, task_id, status, source_path, output_path=None,
+                     info=None, size=0) -> None:
+        """把单曲结果写入持久化层（无 storage / 无 task 时静默跳过）。"""
+        if not self.storage or not task_id:
+            return
+        info = info or {}
+        try:
+            self.storage.add_song(
+                task_id, status,
+                source_path=str(source_path),
+                output_path=str(output_path) if output_path else "",
+                artist=info.get("artist", ""),
+                album=info.get("album", ""),
+                title=info.get("title", ""),
+                size_bytes=size,
+            )
+        except Exception:
+            pass
+
     def process(self) -> None:
         """批量处理音乐文件"""
         supported_formats = self.config.get_supported_formats()
@@ -155,11 +184,23 @@ class MusicOrganizerPipeline:
 
         self.on_log(f"使用 {self.config.threads} 个线程处理", "info")
 
+        # 持久化：开始一个任务记录
+        task_id = None
+        if self.storage:
+            try:
+                task_id = self.storage.create_task(
+                    str(self.config.input_path), str(self.config.output_path),
+                    self.config.threads,
+                )
+            except Exception:
+                task_id = None
+
         start_time = time.time()
         completed = 0
         failed = 0
         skipped = 0
         success_count = 0
+        total_bytes = 0
 
         with ThreadPoolExecutor(max_workers=self.config.threads) as executor:
             futures = {executor.submit(self.process_file, f): f for f in audio_files}
@@ -174,6 +215,7 @@ class MusicOrganizerPipeline:
                     output_path, skipped_file = future.result()
                     if skipped_file:
                         skipped += 1
+                        self._record_song(task_id, 'skipped', file_path)
                     elif output_path:
                         completed += 1
                         success_count += 1
@@ -183,15 +225,23 @@ class MusicOrganizerPipeline:
                             'album': output_path.parent.name,
                             'title': output_path.stem
                         }
+                        size = self._file_size(output_path)
+                        total_bytes += size
+                        self._record_song(task_id, 'success', file_path,
+                                          output_path=output_path, info=file_info,
+                                          size=size)
                         self.on_success(file_info)
                     else:
                         failed += 1
+                        self._record_song(task_id, 'failed', file_path)
                 except CancelledError:
                     skipped += 1
+                    self._record_song(task_id, 'skipped', file_path)
                 except Exception:
                     self.on_log(f"处理失败: {file_path}", "error")
                     traceback.print_exc()
                     failed += 1
+                    self._record_song(task_id, 'failed', file_path)
 
                 # 回调进度
                 elapsed = time.time() - start_time
@@ -215,8 +265,23 @@ class MusicOrganizerPipeline:
             'elapsed': elapsed
         }
         
+        cancelled = bool(self.cancel_event and self.cancel_event.is_set())
+
+        # 持久化：收尾任务记录
+        if self.storage and task_id:
+            try:
+                self.storage.finish_task(
+                    task_id,
+                    'cancelled' if cancelled else 'completed',
+                    total=total_files, success=success_count,
+                    skipped=skipped, failed=failed,
+                    size_bytes=total_bytes, duration_ms=int(elapsed * 1000),
+                )
+            except Exception:
+                pass
+
         self.on_log("=" * 40, "info")
-        if self.cancel_event and self.cancel_event.is_set():
+        if cancelled:
             self.on_log("处理已取消", "warning")
             return
 

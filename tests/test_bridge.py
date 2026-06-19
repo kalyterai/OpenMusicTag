@@ -175,5 +175,45 @@ class DefaultsContractTests(unittest.TestCase):
         self.assertTrue(all(isinstance(d, str) for d in dirs))
 
 
+class BridgeStorageReadTests(unittest.TestCase):
+    """bridge 的持久化读取 slot：注入临时 Storage，避免触碰用户目录。"""
+
+    def setUp(self):
+        from core.storage import Storage
+        self._tmp = tempfile.TemporaryDirectory()
+        self.bridge = Bridge(window=None)
+        # 注入测试用的临时数据库（绕过懒加载的真实路径）
+        self.bridge._storage = Storage(Path(self._tmp.name) / "data.db")
+
+    def tearDown(self):
+        self.bridge._storage.close()
+        self._tmp.cleanup()
+
+    def test_dashboard_stats_reflect_recorded_data(self):
+        storage = self.bridge._storage
+        task_id = storage.create_task("/in", "/out")
+        storage.add_song(task_id, "success", size_bytes=2048)
+        storage.add_song(task_id, "failed")
+        storage.finish_task(task_id, "completed", success=1, failed=1)
+
+        stats = self.bridge.get_dashboard_stats()
+        self.assertEqual(stats["total_songs"], 1)
+        self.assertEqual(stats["failed"], 1)
+        self.assertEqual(stats["pending_tasks"], 0)
+
+    def test_recent_tasks_and_activity_shapes(self):
+        storage = self.bridge._storage
+        tid = storage.create_task("/music/abc", "/out")
+        storage.add_song(tid, "success")
+
+        recent = self.bridge.get_recent_tasks(5)
+        self.assertEqual(len(recent), 1)
+        self.assertEqual(recent[0]["input_path"], "/music/abc")
+
+        activity = self.bridge.get_daily_activity(7)
+        self.assertEqual(len(activity), 7)
+        self.assertIn("weekday", activity[0])
+
+
 if __name__ == "__main__":
     unittest.main()

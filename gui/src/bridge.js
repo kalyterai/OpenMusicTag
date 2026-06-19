@@ -41,6 +41,18 @@ function getMockResult(method, args) {
   if (method === 'get_common_directories') {
     return ['/Users', '/Documents', '/Music', '/Downloads'];
   }
+  if (method === 'get_dashboard_stats') {
+    return {
+      total_songs: 0, success: 0, failed: 0, success_rate: 0,
+      total_bytes: 0, total_tasks: 0, pending_tasks: 0,
+    };
+  }
+  if (method === 'get_recent_tasks') {
+    return [];
+  }
+  if (method === 'get_daily_activity') {
+    return [];
+  }
   if (voidMethods.has(method)) {
     return true;
   }

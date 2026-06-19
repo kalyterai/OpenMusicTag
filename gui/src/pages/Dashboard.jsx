@@ -1,5 +1,43 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import useAppStore from '../stores/appStore';
+import { useQtBridge } from '../bridge';
+
+// 从路径中取末级名称作为任务标题
+function basename(p) {
+  if (!p) return '';
+  const parts = String(p).split(/[\\/]/).filter(Boolean);
+  return parts[parts.length - 1] || String(p);
+}
+
+// 字节数转人类可读
+function formatBytes(n) {
+  if (!n) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let i = 0;
+  let v = n;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i += 1;
+  }
+  return `${v.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+// 把后端 task 记录映射为「近期任务」卡片数据
+function mapTask(t) {
+  const total = t.total || 0;
+  const success = t.success || 0;
+  let progress = 0;
+  if (t.status === 'completed' || t.status === 'cancelled') progress = 100;
+  else if (total > 0) progress = Math.round((success / total) * 100);
+  return {
+    title: basename(t.input_path) || '任务',
+    date: (t.started_at || '').replace('T', ' '),
+    progress,
+    songCount: String(success || total || 0),
+    status: t.status === 'running' ? 'running'
+      : (t.status === 'completed' ? 'completed' : 'in_progress'),
+  };
+}
 
 // SVG Icons
 const Icons = {
@@ -363,48 +401,41 @@ function TopBar() {
 
 export default function Dashboard() {
   const { setCurrentPage } = useAppStore();
+  const { callQt } = useQtBridge();
 
-  // 模拟数据
+  const [stats, setStats] = useState(null);
+  const [weeklyData, setWeeklyData] = useState({});
+  const [recentTasks, setRecentTasks] = useState([]);
+
+  // 从 SQLite（经 bridge）加载真实概览数据
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const [s, activity, tasks] = await Promise.all([
+          callQt('get_dashboard_stats'),
+          callQt('get_daily_activity', 7),
+          callQt('get_recent_tasks', 5),
+        ]);
+        if (!active) return;
+        setStats(s || {});
+        const map = {};
+        (activity || []).forEach((d) => { map[d.weekday] = d.count; });
+        setWeeklyData(map);
+        setRecentTasks((tasks || []).map(mapTask));
+      } catch (e) {
+        console.error('加载概览数据失败:', e);
+      }
+    })();
+    return () => { active = false; };
+  }, [callQt]);
+
   const statsData = {
-    totalSongs: '12,842',
-    successRate: '98.2%',
-    storage: '458 GB',
-    pendingTasks: '3',
+    totalSongs: (stats?.total_songs ?? 0).toLocaleString(),
+    successRate: `${stats?.success_rate ?? 0}%`,
+    storage: formatBytes(stats?.total_bytes ?? 0),
+    pendingTasks: String(stats?.pending_tasks ?? 0),
   };
-
-  const weeklyData = {
-    Mon: 150,
-    Tue: 470,
-    Wed: 300,
-    Thu: 880,
-    Fri: 600,
-    Sat: 200,
-    Sun: 170,
-  };
-
-  const recentTasks = [
-    {
-      title: '周杰伦全集刮削',
-      date: '2024-02-05',
-      progress: 100,
-      songCount: '245',
-      status: 'completed',
-    },
-    {
-      title: 'Hi-Res 摇滚合集',
-      date: '2024-02-05',
-      progress: 65,
-      songCount: '120',
-      status: 'running',
-    },
-    {
-      title: '动漫原声带',
-      date: '2024-02-04',
-      progress: 12,
-      songCount: '50',
-      status: 'in_progress',
-    },
-  ];
 
   return (
     <div style={{ background: '#F9FAFB', minHeight: '100%' }}>

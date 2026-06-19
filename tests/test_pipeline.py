@@ -236,5 +236,44 @@ class PipelineIntegrationTests(unittest.TestCase):
             self.assertEqual(str(written.tags.get("TIT2")), "测试歌曲")
 
 
+class PipelinePersistenceTests(unittest.TestCase):
+    def test_process_records_task_and_song_in_storage(self):
+        from core.storage import Storage
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            input_path = tmp_path / "input"
+            output_path = tmp_path / "organized"
+            input_path.mkdir()
+            create_test_wav(input_path / "测试歌手 - 测试歌曲.wav")
+
+            config = AppConfig(
+                input_path=input_path,
+                output_path=output_path,
+                threads=1,
+                pipeline_order=[
+                    "LoadStage", "ExtractRawTagsStage", "CleanRawTagsStage",
+                    "NormalizeArtistStage", "ExtractFromFilenameStage",
+                    "MergeMetadataStage", "CalculateOutputPathStage",
+                    "CopyFileStage", "WriteTagsStage", "CleanupStage",
+                ],
+            )
+
+            storage = Storage(tmp_path / "data.db")
+            pipeline = MusicOrganizerPipeline(config, storage=storage)
+            with contextlib.redirect_stdout(io.StringIO()):
+                pipeline.process()
+
+            tasks = storage.get_recent_tasks(10)
+            self.assertEqual(len(tasks), 1)
+            self.assertEqual(tasks[0]["status"], "completed")
+            self.assertEqual(tasks[0]["success"], 1)
+
+            songs = storage.get_task_songs(tasks[0]["id"])
+            self.assertEqual(len(songs), 1)
+            self.assertEqual(songs[0]["status"], "success")
+            storage.close()
+
+
 if __name__ == "__main__":
     unittest.main()

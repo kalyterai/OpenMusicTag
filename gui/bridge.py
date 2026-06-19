@@ -28,10 +28,11 @@ class ProcessingWorker(QThread):
     finished = pyqtSignal(dict)
     error = pyqtSignal(str)
 
-    def __init__(self, config: AppConfig):
+    def __init__(self, config: AppConfig, storage=None):
         super().__init__()
         self.config = config
         self.cancel_event = threading.Event()
+        self.storage = storage
 
     def cancel(self):
         """请求协作式取消"""
@@ -67,7 +68,8 @@ class ProcessingWorker(QThread):
                 self.error.emit(error_msg)
 
             # 创建 pipeline
-            pipeline = MusicOrganizerPipeline(self.config, cancel_event=self.cancel_event)
+            pipeline = MusicOrganizerPipeline(self.config, cancel_event=self.cancel_event,
+                                              storage=self.storage)
 
             # 设置回调
             pipeline.on_progress = on_progress
@@ -104,6 +106,15 @@ class Bridge(QObject):
         self.worker = None
         self.processing = False
         self.config_overrides = {}
+        self._storage = None
+
+    @property
+    def storage(self):
+        """懒加载持久化层：仅在真正用到时才创建数据库（避免测试副作用）。"""
+        if self._storage is None:
+            from core.storage import Storage
+            self._storage = Storage()
+        return self._storage
 
     def _build_pipeline_order(self, params: dict) -> list:
         """根据 GUI 开关构建 Pipeline 顺序"""
@@ -201,7 +212,7 @@ class Bridge(QObject):
             })
 
             # 启动工作线程
-            self.worker = ProcessingWorker(config)
+            self.worker = ProcessingWorker(config, storage=self.storage)
             self.worker.progress.connect(self._on_progress)
             self.worker.log.connect(self._on_log)
             self.worker.finished.connect(self._on_finished)
@@ -270,6 +281,33 @@ class Bridge(QObject):
             'enableCoverDownload': True,
             'enableSimplifiedChinese': True,
         }
+
+    @pyqtSlot(result=dict)
+    def get_dashboard_stats(self) -> dict:
+        """聚合统计：累计歌曲数、成功率、处理容量、任务数（来自 SQLite）。"""
+        try:
+            return self.storage.get_dashboard_stats()
+        except Exception as e:
+            print(f"[ERROR] 读取统计失败: {e}")
+            return {}
+
+    @pyqtSlot(int, result=list)
+    def get_recent_tasks(self, limit: int = 10) -> list:
+        """最近的任务记录（用于 Dashboard 近期任务 / History）。"""
+        try:
+            return self.storage.get_recent_tasks(limit or 10)
+        except Exception as e:
+            print(f"[ERROR] 读取任务记录失败: {e}")
+            return []
+
+    @pyqtSlot(int, result=list)
+    def get_daily_activity(self, days: int = 7) -> list:
+        """最近 N 天每天成功处理的歌曲数（活跃度图）。"""
+        try:
+            return self.storage.get_daily_activity(days or 7)
+        except Exception as e:
+            print(f"[ERROR] 读取活跃度失败: {e}")
+            return []
 
     @pyqtSlot(str, result=dict)
     def scan_directory(self, path: str) -> dict:
