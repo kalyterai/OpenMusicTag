@@ -184,6 +184,16 @@ class Bridge(QObject):
                 threads=threads,
                 pipeline_order=self._build_pipeline_order({**self.config_overrides, **params}),
             )
+            config.execution_config = {
+                'threads': threads,
+                'enableCoverDownload': params.get('enableCoverDownload', True),
+                'enableSimplifiedChinese': params.get('enableSimplifiedChinese', True),
+                'enableDuplicateCheck': params.get('enableDuplicateCheck', True),
+                'enableFilenameParse': params.get('enableFilenameParse', True),
+                'enableMetadataScrape': params.get('enableMetadataScrape', True),
+                'input_path': input_path,
+                'output_path': output_path,
+            }
 
             self.log.emit({
                 'message': '🚀 开始处理...',
@@ -301,6 +311,15 @@ class Bridge(QObject):
             print(f"[ERROR] 读取任务记录失败: {e}")
             return []
 
+    @pyqtSlot(int, result='QVariantMap')
+    def get_task(self, task_id: int) -> dict:
+        """获取单个任务详情（含 execution_config）。"""
+        try:
+            return self.storage.get_task(task_id) or {}
+        except Exception as e:
+            print(f"[ERROR] 读取任务详情失败: {e}")
+            return {}
+
     @pyqtSlot(int, result=list)
     def get_daily_activity(self, days: int = 7) -> list:
         """最近 N 天每天成功处理的歌曲数（活跃度图）。"""
@@ -388,15 +407,15 @@ class Bridge(QObject):
 
     @pyqtSlot(str, result=int)
     def count_folder_files(self, path: str) -> int:
-        """统计单个目录下的音乐文件数（前端对可见目录按需调用）。"""
+        """递归统计目录下全部音乐文件数（前端对可见目录按需调用）。"""
         try:
             folder = Path(path)
             if not folder.is_dir():
                 return 0
-            return sum(
-                1 for f in folder.iterdir()
-                if f.is_file() and self._is_music_file(f.name)
-            )
+            count = 0
+            for root, _, files in os.walk(folder):
+                count += sum(1 for name in files if self._is_music_file(name))
+            return count
         except OSError:
             return 0
         except Exception as e:
@@ -549,6 +568,81 @@ class Bridge(QObject):
             ]
 
         return directories
+
+    @pyqtSlot(result=list)
+    def list_artist_aliases(self) -> list:
+        try:
+            return self.storage.list_artist_aliases()
+        except Exception as e:
+            print(f"[ERROR] 读取艺人映射失败: {e}")
+            return []
+
+    @pyqtSlot(str, str, result=int)
+    def add_artist_alias(self, original: str, standardized: str) -> int:
+        try:
+            if not original.strip() or not standardized.strip():
+                return 0
+            return self.storage.add_artist_alias(original, standardized)
+        except Exception as e:
+            print(f"[ERROR] 添加艺人映射失败: {e}")
+            return 0
+
+    @pyqtSlot(int, str, str, bool, result=bool)
+    def update_artist_alias(self, alias_id: int, original: str, standardized: str,
+                            enabled: bool) -> bool:
+        try:
+            self.storage.update_artist_alias(alias_id, original, standardized, enabled)
+            return True
+        except Exception as e:
+            print(f"[ERROR] 更新艺人映射失败: {e}")
+            return False
+
+    @pyqtSlot(int, result=bool)
+    def delete_artist_alias(self, alias_id: int) -> bool:
+        try:
+            self.storage.delete_artist_alias(alias_id)
+            return True
+        except Exception as e:
+            print(f"[ERROR] 删除艺人映射失败: {e}")
+            return False
+
+    @pyqtSlot(result=list)
+    def list_cleanup_rules(self) -> list:
+        try:
+            return self.storage.list_cleanup_rules()
+        except Exception as e:
+            print(f"[ERROR] 读取清洗规则失败: {e}")
+            return []
+
+    @pyqtSlot(str, str, str, bool, result=int)
+    def add_cleanup_rule(self, pattern: str, replacement: str,
+                         description: str, enabled: bool) -> int:
+        try:
+            if not pattern.strip():
+                return 0
+            return self.storage.add_cleanup_rule(pattern, replacement, description, enabled)
+        except Exception as e:
+            print(f"[ERROR] 添加清洗规则失败: {e}")
+            return 0
+
+    @pyqtSlot(int, str, str, str, bool, result=bool)
+    def update_cleanup_rule(self, rule_id: int, pattern: str, replacement: str,
+                            description: str, enabled: bool) -> bool:
+        try:
+            self.storage.update_cleanup_rule(rule_id, pattern, replacement, description, enabled)
+            return True
+        except Exception as e:
+            print(f"[ERROR] 更新清洗规则失败: {e}")
+            return False
+
+    @pyqtSlot(int, result=bool)
+    def delete_cleanup_rule(self, rule_id: int) -> bool:
+        try:
+            self.storage.delete_cleanup_rule(rule_id)
+            return True
+        except Exception as e:
+            print(f"[ERROR] 删除清洗规则失败: {e}")
+            return False
 
     def _is_music_file(self, filename: str) -> bool:
         """检查是否为音乐文件"""

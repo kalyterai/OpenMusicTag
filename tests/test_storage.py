@@ -93,6 +93,25 @@ class StorageTaskSongTests(unittest.TestCase):
         self.assertEqual(recent[0]["input_path"], "/in/2")
         self.assertEqual(recent[-1]["input_path"], "/in/0")
 
+    def test_task_execution_config_round_trip(self):
+        task_id = self.storage.create_task(
+            "/in", "/out", threads=6,
+            execution_config={"enableMetadataScrape": False, "threads": 6},
+        )
+        task = self.storage.get_task(task_id)
+        self.assertEqual(task["execution_config"]["enableMetadataScrape"], False)
+        self.assertEqual(task["execution_config"]["threads"], 6)
+
+    def test_dictionary_defaults_and_add_rule(self):
+        aliases = self.storage.list_artist_aliases()
+        rules = self.storage.list_cleanup_rules()
+        self.assertTrue(any(a["original"] == "G.E.M." for a in aliases))
+        self.assertTrue(any("QQ音乐" in r["pattern"] for r in rules))
+
+        rid = self.storage.add_cleanup_rule("测试广告", "", "测试规则")
+        added = [r for r in self.storage.list_cleanup_rules() if r["id"] == rid][0]
+        self.assertEqual(added["description"], "测试规则")
+
 
 class StorageTagsAndDetailTests(unittest.TestCase):
     def setUp(self):

@@ -127,6 +127,17 @@ class ScanDirectoryTests(unittest.TestCase):
             file_names = {f["name"] for f in result["files"]}
             self.assertIn("顶层歌曲.wav", file_names)
 
+    def test_count_folder_files_is_recursive(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            album = root / "artist" / "album"
+            album.mkdir(parents=True)
+            (album / "a.mp3").write_bytes(b"")
+            (album / "b.flac").write_bytes(b"")
+            (root / "cover.jpg").write_bytes(b"")
+
+            self.assertEqual(self.bridge.count_folder_files(str(root)), 2)
+
     def test_missing_path_returns_empty(self):
         result = self.bridge.scan_directory("/path/does/not/exist/xyz")
         self.assertEqual(result, {"subfolders": [], "files": []})
@@ -250,11 +261,15 @@ class WebChannelTypeSafetyTests(unittest.TestCase):
         expected = {
             "get_dashboard_stats": "QVariantMap",
             "scan_directory": "QVariantMap",
+            "scan_directory_lazy": "QVariantMap",
             "get_default_config": "QVariantMap",
             "get_music_file_details": "QVariantMap",
+            "get_task": "QVariantMap",
             "get_recent_tasks": "QVariantList",
             "get_daily_activity": "QVariantList",
             "get_common_directories": "QVariantList",
+            "list_artist_aliases": "QVariantList",
+            "list_cleanup_rules": "QVariantList",
         }
         seen = {}
         for m in self._iter_methods():

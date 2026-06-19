@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     input_path   TEXT NOT NULL,                            -- 输入目录（可能是远端/网络路径）
     output_path  TEXT NOT NULL,                            -- 输出目录
     threads      INTEGER,                                  -- 并发线程数
+    execution_config TEXT,                                 -- 本次执行配置（JSON 字符串）
     status       TEXT NOT NULL DEFAULT 'running',          -- 状态: running/completed/cancelled
     total        INTEGER DEFAULT 0,                        -- 扫描到的文件总数
     success      INTEGER DEFAULT 0,                        -- 成功处理数
@@ -98,6 +99,31 @@ CREATE INDEX IF NOT EXISTS idx_songs_status  ON songs(status);
 CREATE INDEX IF NOT EXISTS idx_songs_created ON songs(created_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_started ON tasks(started_at);
 
+-- 艺人别名表：标签库中的广泛沉淀默认数据 + 用户自定义映射
+CREATE TABLE IF NOT EXISTS artist_aliases (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,        -- 映射自增主键
+    original     TEXT NOT NULL,                            -- 原始名称/别名
+    standardized TEXT NOT NULL,                            -- 标准名称
+    usage_count  INTEGER DEFAULT 0,                        -- 使用次数
+    enabled      INTEGER NOT NULL DEFAULT 1,                -- 是否启用
+    gmt_create   TEXT NOT NULL DEFAULT ({_TS_SQL}),        -- 审计：记录创建时间
+    gmt_modified TEXT NOT NULL DEFAULT ({_TS_SQL})         -- 审计：记录最后更新时间
+);
+
+-- 清洗规则表：广告、乱码、版本后缀等文本替换规则
+CREATE TABLE IF NOT EXISTS cleanup_rules (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,        -- 规则自增主键
+    pattern      TEXT NOT NULL,                            -- 匹配模式
+    replacement  TEXT DEFAULT '',                          -- 替换内容
+    description  TEXT DEFAULT '',                          -- 规则说明
+    enabled      INTEGER NOT NULL DEFAULT 1,                -- 是否启用
+    gmt_create   TEXT NOT NULL DEFAULT ({_TS_SQL}),        -- 审计：记录创建时间
+    gmt_modified TEXT NOT NULL DEFAULT ({_TS_SQL})         -- 审计：记录最后更新时间
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_artist_alias_original ON artist_aliases(original);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cleanup_rule_pattern ON cleanup_rules(pattern);
+
 -- gmt_modified 自动刷新触发器（SQLite 无 ON UPDATE，靠 AFTER UPDATE 实现）
 -- 默认 recursive_triggers=OFF，内部 UPDATE 不会再次触发本触发器，无递归。
 CREATE TRIGGER IF NOT EXISTS trg_tasks_modified
@@ -111,7 +137,39 @@ AFTER UPDATE ON songs FOR EACH ROW
 BEGIN
     UPDATE songs SET gmt_modified = {_TS_SQL} WHERE id = OLD.id;
 END;
+
+CREATE TRIGGER IF NOT EXISTS trg_artist_aliases_modified
+AFTER UPDATE ON artist_aliases FOR EACH ROW
+BEGIN
+    UPDATE artist_aliases SET gmt_modified = {_TS_SQL} WHERE id = OLD.id;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_cleanup_rules_modified
+AFTER UPDATE ON cleanup_rules FOR EACH ROW
+BEGIN
+    UPDATE cleanup_rules SET gmt_modified = {_TS_SQL} WHERE id = OLD.id;
+END;
 """
+
+_DEFAULT_ARTIST_ALIASES = [
+    ("G.E.M.", "邓紫棋", 42),
+    ("GEM", "邓紫棋", 18),
+    ("Jay Chou", "周杰伦", 128),
+    ("Eason Chan", "陈奕迅", 86),
+    ("JJ Lin", "林俊杰", 65),
+    ("Mayday", "五月天", 54),
+]
+
+_DEFAULT_CLEANUP_RULES = [
+    ("\\[mqms2\\]", "", "移除常见下载站标记", 1),
+    ("www\\..*?\\.com", "", "移除网站广告", 1),
+    ("QQ音乐", "", "移除平台标识", 1),
+    ("酷狗音乐", "", "移除平台标识", 1),
+    ("网易云音乐", "", "移除平台标识", 1),
+    ("演唱会|演唱會", "", "移除演唱会后缀", 1),
+    ("Live|LIVE", "", "移除 Live 标识", 1),
+    ("\\s+", " ", "合并多余空白", 1),
+]
 
 
 class Storage:
@@ -153,6 +211,8 @@ class Storage:
                         self._conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} TEXT")
             if song_cols and "tags" not in song_cols:
                 self._conn.execute("ALTER TABLE songs ADD COLUMN tags TEXT")
+            if task_cols and "execution_config" not in task_cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN execution_config TEXT")
 
             # 回填旧数据的审计字段（用业务时间近似）
             self._conn.execute(
@@ -164,6 +224,25 @@ class Storage:
                 "UPDATE songs SET gmt_create = COALESCE(gmt_create, created_at),"
                 " gmt_modified = COALESCE(gmt_modified, created_at)"
                 " WHERE gmt_create IS NULL OR gmt_modified IS NULL"
+            )
+            self._conn.commit()
+        self._seed_dictionary_defaults()
+
+    def _seed_dictionary_defaults(self) -> None:
+        """写入标签库默认数据；已存在则不覆盖用户修改。"""
+        ts = _now()
+        with self._lock:
+            self._conn.executemany(
+                "INSERT OR IGNORE INTO artist_aliases"
+                " (original, standardized, usage_count, enabled, gmt_create, gmt_modified)"
+                " VALUES (?, ?, ?, 1, ?, ?)",
+                [(a, b, c, ts, ts) for a, b, c in _DEFAULT_ARTIST_ALIASES],
+            )
+            self._conn.executemany(
+                "INSERT OR IGNORE INTO cleanup_rules"
+                " (pattern, replacement, description, enabled, gmt_create, gmt_modified)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                [(p, r, d, e, ts, ts) for p, r, d, e in _DEFAULT_CLEANUP_RULES],
             )
             self._conn.commit()
 
@@ -189,14 +268,34 @@ class Storage:
 
     # ========== 写入 ==========
 
-    def create_task(self, input_path: str, output_path: str, threads: int = 4) -> int:
+    @staticmethod
+    def _row_to_task(row: sqlite3.Row) -> Dict[str, Any]:
+        d = dict(row)
+        raw = d.get("execution_config")
+        if raw:
+            try:
+                d["execution_config"] = json.loads(raw)
+            except (ValueError, TypeError):
+                d["execution_config"] = {}
+        else:
+            d["execution_config"] = {}
+        return d
+
+    def create_task(
+        self,
+        input_path: str,
+        output_path: str,
+        threads: int = 4,
+        execution_config: Optional[Dict[str, Any]] = None,
+    ) -> int:
         ts = _now()
+        config_json = json.dumps(execution_config or {}, ensure_ascii=False)
         with self._lock:
             cur = self._conn.execute(
-                "INSERT INTO tasks (input_path, output_path, threads, status,"
+                "INSERT INTO tasks (input_path, output_path, threads, execution_config, status,"
                 " started_at, gmt_create, gmt_modified)"
-                " VALUES (?, ?, ?, 'running', ?, ?, ?)",
-                (str(input_path), str(output_path), int(threads), ts, ts, ts),
+                " VALUES (?, ?, ?, ?, 'running', ?, ?, ?)",
+                (str(input_path), str(output_path), int(threads), config_json, ts, ts, ts),
             )
             self._conn.commit()
             return cur.lastrowid
@@ -255,7 +354,14 @@ class Storage:
             rows = self._conn.execute(
                 "SELECT * FROM tasks ORDER BY id DESC LIMIT ?", (int(limit),)
             ).fetchall()
-        return [dict(r) for r in rows]
+        return [self._row_to_task(r) for r in rows]
+
+    def get_task(self, task_id: int) -> Optional[Dict[str, Any]]:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM tasks WHERE id=?", (int(task_id),)
+            ).fetchone()
+        return self._row_to_task(row) if row else None
 
     def get_task_songs(
         self, task_id: int, limit: int = 50, offset: int = 0
@@ -364,3 +470,81 @@ class Storage:
                 "count": counts.get(iso, 0),
             })
         return result
+
+    # ========== 标签库 ==========
+
+    @staticmethod
+    def _row_to_rule(row: sqlite3.Row) -> Dict[str, Any]:
+        d = dict(row)
+        d["enabled"] = bool(d.get("enabled"))
+        return d
+
+    def list_artist_aliases(self) -> List[Dict[str, Any]]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM artist_aliases ORDER BY usage_count DESC, id DESC"
+            ).fetchall()
+        return [self._row_to_rule(r) for r in rows]
+
+    def add_artist_alias(self, original: str, standardized: str) -> int:
+        ts = _now()
+        with self._lock:
+            cur = self._conn.execute(
+                "INSERT INTO artist_aliases"
+                " (original, standardized, usage_count, enabled, gmt_create, gmt_modified)"
+                " VALUES (?, ?, 0, 1, ?, ?)",
+                (original.strip(), standardized.strip(), ts, ts),
+            )
+            self._conn.commit()
+            return cur.lastrowid
+
+    def update_artist_alias(self, alias_id: int, original: str, standardized: str,
+                            enabled: bool = True) -> None:
+        with self._lock:
+            self._conn.execute(
+                "UPDATE artist_aliases SET original=?, standardized=?, enabled=? WHERE id=?",
+                (original.strip(), standardized.strip(), 1 if enabled else 0, int(alias_id)),
+            )
+            self._conn.commit()
+
+    def delete_artist_alias(self, alias_id: int) -> None:
+        with self._lock:
+            self._conn.execute("DELETE FROM artist_aliases WHERE id=?", (int(alias_id),))
+            self._conn.commit()
+
+    def list_cleanup_rules(self) -> List[Dict[str, Any]]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM cleanup_rules ORDER BY enabled DESC, id DESC"
+            ).fetchall()
+        return [self._row_to_rule(r) for r in rows]
+
+    def add_cleanup_rule(self, pattern: str, replacement: str = "",
+                         description: str = "", enabled: bool = True) -> int:
+        ts = _now()
+        with self._lock:
+            cur = self._conn.execute(
+                "INSERT INTO cleanup_rules"
+                " (pattern, replacement, description, enabled, gmt_create, gmt_modified)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
+                (pattern.strip(), replacement or "", description or "",
+                 1 if enabled else 0, ts, ts),
+            )
+            self._conn.commit()
+            return cur.lastrowid
+
+    def update_cleanup_rule(self, rule_id: int, pattern: str, replacement: str = "",
+                            description: str = "", enabled: bool = True) -> None:
+        with self._lock:
+            self._conn.execute(
+                "UPDATE cleanup_rules SET pattern=?, replacement=?, description=?, enabled=?"
+                " WHERE id=?",
+                (pattern.strip(), replacement or "", description or "",
+                 1 if enabled else 0, int(rule_id)),
+            )
+            self._conn.commit()
+
+    def delete_cleanup_rule(self, rule_id: int) -> None:
+        with self._lock:
+            self._conn.execute("DELETE FROM cleanup_rules WHERE id=?", (int(rule_id),))
+            self._conn.commit()

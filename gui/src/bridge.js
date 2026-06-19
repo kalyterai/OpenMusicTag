@@ -35,6 +35,12 @@ function getMockResult(method, args) {
   if (method === 'scan_directory') {
     return { subfolders: [], files: [] };
   }
+  if (method === 'scan_directory_lazy') {
+    return { subfolders: [], files: [] };
+  }
+  if (method === 'count_folder_files') {
+    return 0;
+  }
   if (method === 'get_music_file_details') {
     return {};
   }
@@ -52,6 +58,24 @@ function getMockResult(method, args) {
   }
   if (method === 'get_daily_activity') {
     return [];
+  }
+  if (method === 'get_task') {
+    return {};
+  }
+  if (method === 'get_task_songs') {
+    return [];
+  }
+  if (method === 'list_artist_aliases') {
+    return [];
+  }
+  if (method === 'list_cleanup_rules') {
+    return [];
+  }
+  if (method.startsWith('add_')) {
+    return Date.now();
+  }
+  if (method.startsWith('update_') || method.startsWith('delete_')) {
+    return true;
   }
   if (voidMethods.has(method)) {
     return true;

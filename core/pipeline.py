@@ -196,6 +196,7 @@ class MusicOrganizerPipeline:
                 task_id = self.storage.create_task(
                     str(self.config.input_path), str(self.config.output_path),
                     self.config.threads,
+                    execution_config=getattr(self.config, "execution_config", {}),
                 )
             except Exception:
                 task_id = None

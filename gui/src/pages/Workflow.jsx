@@ -54,8 +54,9 @@ const Icons = {
 
 function StepRail({ currentStep }) {
   const steps = [
-    { id: 1, title: '编排任务', note: '目录与规则' },
-    { id: 2, title: '启动前复核', note: '确认写入方式' },
+    { id: 1, title: '选择目录', note: '输入与输出' },
+    { id: 2, title: '运行配置', note: '线程与规则' },
+    { id: 3, title: '启动前复核', note: '确认写入方式' },
   ];
 
   return (
@@ -206,10 +207,12 @@ export default function Workflow() {
 
   const canContinue = Boolean(localConfig.inputPath && localConfig.outputPath);
 
+  const clampThreads = (value) => Math.max(1, Math.min(16, parseInt(value, 10) || 1));
+
   const handleNextStep = () => {
-    if (!canContinue) return;
+    if (workflowStep === 1 && !canContinue) return;
     updateWorkflowConfig(localConfig);
-    setWorkflowStep(2);
+    setWorkflowStep(Math.min(workflowStep + 1, 3));
   };
 
   const handleStartProcessing = async () => {
@@ -264,7 +267,7 @@ export default function Workflow() {
         {workflowStep === 1 ? (
           <div className="workflow-grid">
             <div style={{ padding: 22, borderRight: '1px solid var(--line)' }}>
-              <h2 className="panel-title" style={{ marginBottom: 18 }}>目录与并发</h2>
+              <h2 className="panel-title" style={{ marginBottom: 18 }}>输入目录</h2>
               <div style={{ display: 'grid', gap: 18 }}>
                 <PathPicker
                   label="输入目录"
@@ -274,6 +277,12 @@ export default function Workflow() {
                   onPick={handleSelectInput}
                   disabled={isProcessing}
                 />
+              </div>
+            </div>
+
+            <div style={{ padding: 22 }}>
+              <h2 className="panel-title" style={{ marginBottom: 18 }}>输出目录</h2>
+              <div style={{ display: 'grid', gap: 18 }}>
                 <PathPicker
                   label="输出目录"
                   value={localConfig.outputPath}
@@ -282,31 +291,46 @@ export default function Workflow() {
                   onPick={handleSelectOutput}
                   disabled={isProcessing}
                 />
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <label style={{ color: 'var(--ink)', fontWeight: 850 }}>处理线程数</label>
-                    <span className="chip chip-amber">{localConfig.threads}</span>
-                  </div>
+                <div className="waveform" />
+                <p style={{ color: 'var(--muted)', lineHeight: 1.7, margin: 0 }}>
+                  输出文件会按「歌手/专辑」结构整理。建议输出到新目录，保留原文件作为备份。
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : workflowStep === 2 ? (
+          <div className="workflow-grid">
+            <div style={{ padding: 22 }}>
+              <h2 className="panel-title" style={{ marginBottom: 18 }}>处理线程数</h2>
+              <div className="panel" style={{ padding: 16, boxShadow: 'none' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 96px', gap: 12, alignItems: 'center' }}>
                   <input
                     type="range"
                     min="1"
                     max="16"
                     value={localConfig.threads}
-                    onChange={(e) => handleConfigChange('threads', parseInt(e.target.value, 10))}
+                    onChange={(e) => handleConfigChange('threads', clampThreads(e.target.value))}
                     disabled={isProcessing}
                     style={{ width: '100%', accentColor: 'var(--groove)' }}
                   />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--muted)', fontSize: 12, marginTop: 4 }}>
-                    <span>1</span>
-                    <span>8</span>
-                    <span>16</span>
-                  </div>
+                  <input
+                    type="number"
+                    min="1"
+                    max="16"
+                    value={localConfig.threads}
+                    onChange={(e) => handleConfigChange('threads', clampThreads(e.target.value))}
+                    disabled={isProcessing}
+                    className="input"
+                  />
                 </div>
+                <p style={{ margin: '10px 0 0', color: 'var(--muted)', fontSize: 12 }}>
+                  网络共享目录建议使用较低线程数，本地 SSD 可适当提高。
+                </p>
               </div>
             </div>
 
-            <div style={{ padding: 22 }}>
-              <h2 className="panel-title" style={{ marginBottom: 18 }}>处理规则</h2>
+            <div style={{ padding: 22, borderLeft: '1px solid var(--line)' }}>
+              <h2 className="panel-title" style={{ marginBottom: 18 }}>刮削运行配置</h2>
               <div style={{ display: 'grid', gap: 10 }}>
                 <SwitchRow
                   icon={Icons.Cover}
@@ -374,7 +398,7 @@ export default function Workflow() {
         <div style={{ padding: 16, borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', gap: 12 }}>
           <div className="toolbar">
             {workflowStep > 1 && (
-              <button type="button" onClick={() => setWorkflowStep(1)} className="btn btn-secondary">
+              <button type="button" onClick={() => setWorkflowStep(Math.max(1, workflowStep - 1))} className="btn btn-secondary">
                 <Icons.Back />
                 上一步
               </button>
@@ -384,14 +408,14 @@ export default function Workflow() {
             <button type="button" onClick={handleCancel} className="btn btn-secondary">
               取消
             </button>
-            {workflowStep === 1 ? (
+            {workflowStep < 3 ? (
               <button
                 type="button"
                 onClick={handleNextStep}
-                disabled={!canContinue || isProcessing}
+                disabled={(workflowStep === 1 && !canContinue) || isProcessing}
                 className="btn btn-primary"
               >
-                继续复核
+                {workflowStep === 1 ? '继续配置' : '继续复核'}
                 <Icons.Arrow />
               </button>
             ) : (

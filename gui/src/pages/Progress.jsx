@@ -149,13 +149,27 @@ export default function Progress() {
     resetTask,
     addHistory,
   } = useAppStore();
-  const { cancelTask } = useQtBridge();
+  const { cancelTask, callQt } = useQtBridge();
   const [autoScroll, setAutoScroll] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
+  const [tasks, setTasks] = useState([]);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [taskSongs, setTaskSongs] = useState([]);
   const startTime = useRef(Date.now());
   const recordedTerminalStatus = useRef(null);
 
   const successRate = processedFiles > 0 ? Math.round((successCount / processedFiles) * 100) : 0;
+  const selectedTotal = selectedTask?.total ?? totalFiles;
+  const selectedSuccess = selectedTask?.success ?? successCount;
+  const selectedFailed = selectedTask?.failed ?? failCount;
+  const selectedSkipped = selectedTask?.skipped ?? 0;
+  const selectedProcessed = selectedSuccess + selectedFailed + selectedSkipped;
+  const selectedRate = selectedProcessed > 0 ? Math.round((selectedSuccess / selectedProcessed) * 100) : successRate;
+  const selectedProgress = selectedTask
+    ? (selectedTask.status === 'completed' || selectedTask.status === 'cancelled'
+      ? 100
+      : (selectedTotal > 0 ? Math.round((selectedProcessed / selectedTotal) * 100) : 0))
+    : progress;
   const remaining = useMemo(() => {
     if (taskStatus !== 'processing' || processedFiles <= 0 || progress <= 0) return '计算中';
     const elapsedSeconds = Math.max((Date.now() - startTime.current) / 1000, 1);
@@ -188,6 +202,29 @@ export default function Progress() {
     }
   }, [taskStatus, processedFiles, successCount, failCount, totalFiles, addHistory]);
 
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const list = await callQt('get_recent_tasks', 50);
+        if (active) setTasks(list || []);
+      } catch (e) {
+        if (active) setTasks([]);
+      }
+    })();
+    return () => { active = false; };
+  }, [callQt, taskStatus]);
+
+  const handleSelectTask = async (task) => {
+    setSelectedTask(task);
+    try {
+      const songs = await callQt('get_task_songs', task.id, 80, 0);
+      setTaskSongs(songs || []);
+    } catch (e) {
+      setTaskSongs([]);
+    }
+  };
+
   const handleStop = async () => {
     try {
       await cancelTask();
@@ -205,6 +242,69 @@ export default function Progress() {
     cancelled: '已取消',
   }[taskStatus] || taskStatus;
 
+  if (!selectedTask) {
+    return (
+      <div className="page animate-fadeIn">
+        <header className="page-header">
+          <div>
+            <p className="page-kicker">Task history</p>
+            <h1 className="page-title">任务详情</h1>
+            <p className="page-copy">先选择一个任务批次，再查看处理统计、运行配置和该任务写入的歌曲。</p>
+          </div>
+          <button type="button" className="btn btn-secondary" onClick={() => setCurrentPage('scrape')}>新建刮削</button>
+        </header>
+
+        <section className="panel" style={{ overflow: 'hidden' }}>
+          <div className="panel-header">
+            <div>
+              <h2 className="panel-title">任务列表</h2>
+              <p className="panel-subtitle">最近 50 个批处理任务</p>
+            </div>
+            <span className="chip chip-blue">{tasks.length} 个任务</span>
+          </div>
+          {tasks.length === 0 ? (
+            <div style={{ padding: 18 }}>
+              <div className="empty-state">
+                <Icons.Clock />
+                <div style={{ marginTop: 10, fontWeight: 850, color: 'var(--ink)' }}>还没有任务记录</div>
+                <div style={{ marginTop: 4, fontSize: 13 }}>从「新建刮削」启动一次任务后，这里会出现历史批次。</div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>输入目录</th>
+                    <th>状态</th>
+                    <th>文件</th>
+                    <th>成功</th>
+                    <th>失败</th>
+                    <th>开始时间</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tasks.map((task) => (
+                    <tr key={task.id} onClick={() => handleSelectTask(task)} style={{ cursor: 'pointer' }}>
+                      <td className="mono" style={{ maxWidth: 360 }}>
+                        <div className="truncate-1">{task.input_path}</div>
+                      </td>
+                      <td><span className={`chip ${task.status === 'completed' ? 'chip-green' : task.status === 'running' ? 'chip-blue' : 'chip-amber'}`}>{task.status}</span></td>
+                      <td>{task.total || 0}</td>
+                      <td>{task.success || 0}</td>
+                      <td>{task.failed || 0}</td>
+                      <td>{(task.started_at || '').replace('T', ' ')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="page page-narrow animate-fadeIn">
       <header className="page-header">
@@ -215,15 +315,18 @@ export default function Progress() {
             跟踪当前批次的处理进度、成功率和实时日志，完成后可直接回到资源库检查结果。
           </p>
         </div>
-        <StatusBadge status={taskStatus === 'error' ? 'error' : (taskStatus === 'processing' ? 'processing' : 'info')}>
-          {statusText}
-        </StatusBadge>
+        <div className="toolbar">
+          <button type="button" className="btn btn-secondary" onClick={() => setSelectedTask(null)}>返回任务列表</button>
+          <StatusBadge status={selectedTask.status === 'failed' || selectedTask.status === 'error' ? 'error' : (selectedTask.status === 'running' ? 'processing' : 'info')}>
+            {selectedTask.status || statusText}
+          </StatusBadge>
+        </div>
       </header>
 
       <section className="progress-grid">
         <div style={{ display: 'grid', gap: 16 }}>
           <section className="panel" style={{ padding: 22, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <ProgressDial value={progress} />
+            <ProgressDial value={selectedProgress} />
             <div style={{ marginTop: 18, textAlign: 'center' }}>
               <div style={{ color: 'var(--ink)', fontWeight: 850 }}>{progressText || statusText}</div>
               {taskStatus === 'processing' && (
@@ -238,11 +341,11 @@ export default function Progress() {
             <h2 className="panel-title" style={{ marginBottom: 14 }}>处理统计</h2>
             <div style={{ display: 'grid', gap: 10 }}>
               {[
-                ['总文件数', totalFiles],
-                ['已处理', processedFiles],
-                ['成功', successCount],
-                ['失败', failCount],
-                ['成功率', `${successRate}%`],
+                ['总文件数', selectedTotal],
+                ['已处理', selectedProcessed],
+                ['成功', selectedSuccess],
+                ['失败', selectedFailed],
+                ['成功率', `${selectedRate}%`],
               ].map(([label, value]) => (
                 <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, color: 'var(--muted)' }}>
                   <span>{label}</span>
@@ -253,7 +356,7 @@ export default function Progress() {
           </section>
 
           <div style={{ display: 'grid', gap: 8 }}>
-            {taskStatus === 'processing' && (
+            {selectedTask.status === 'running' && taskStatus === 'processing' && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setIsPaused(!isPaused)}>
                   {isPaused ? <Icons.Play /> : <Icons.Pause />}
@@ -265,13 +368,13 @@ export default function Progress() {
                 </button>
               </div>
             )}
-            {taskStatus === 'completed' && (
+            {selectedTask.status === 'completed' && (
               <>
                 <button type="button" className="btn btn-primary" onClick={() => setCurrentPage('files')}>查看资源库</button>
                 <button type="button" className="btn btn-secondary" onClick={() => { resetTask(); setCurrentPage('dashboard'); }}>返回控制面板</button>
               </>
             )}
-            {taskStatus === 'error' && (
+            {(selectedTask.status === 'error' || selectedTask.status === 'failed') && (
               <button type="button" className="btn btn-secondary" onClick={() => { resetTask(); setCurrentPage('dashboard'); }}>返回控制面板</button>
             )}
           </div>
@@ -280,8 +383,8 @@ export default function Progress() {
         <section className="panel" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 560 }}>
           <div className="panel-header">
             <div>
-              <h2 className="panel-title">实时日志</h2>
-              <p className="panel-subtitle">Pipeline 输出的处理事件</p>
+              <h2 className="panel-title">{selectedTask.status === 'running' ? '实时日志' : '任务歌曲'}</h2>
+              <p className="panel-subtitle">{selectedTask.status === 'running' ? 'Pipeline 输出的处理事件' : '该任务写入数据库的单曲结果'}</p>
             </div>
             <label className="chip" style={{ cursor: 'pointer' }}>
               <input
@@ -295,7 +398,28 @@ export default function Progress() {
           </div>
 
           <div id="logs-container" style={{ padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {progressLogs.length === 0 ? (
+            {selectedTask.status !== 'running' ? (
+              taskSongs.length === 0 ? (
+                <div className="empty-state">
+                  <Icons.File />
+                  <div style={{ marginTop: 10, fontWeight: 850, color: 'var(--ink)' }}>没有歌曲记录</div>
+                </div>
+              ) : (
+                taskSongs.map((song) => (
+                  <article key={song.id} className="panel" style={{ padding: 12, boxShadow: 'none' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="truncate-1" style={{ fontWeight: 850, color: 'var(--ink)' }}>{song.title || song.source_path}</div>
+                        <div className="truncate-1" style={{ marginTop: 4, color: 'var(--muted)', fontSize: 12 }}>
+                          {song.artist || '未知艺人'} / {song.album || '未知专辑'}
+                        </div>
+                      </div>
+                      <span className={`chip ${song.status === 'success' ? 'chip-green' : song.status === 'failed' ? 'chip-red' : 'chip-amber'}`}>{song.status}</span>
+                    </div>
+                  </article>
+                ))
+              )
+            ) : progressLogs.length === 0 ? (
               <div className="empty-state">
                 <Icons.Clock />
                 <div style={{ marginTop: 10, fontWeight: 850, color: 'var(--ink)' }}>等待日志</div>
