@@ -93,12 +93,13 @@ class ProcessingWorker(QThread):
 class Bridge(QObject):
     """前端与后端通信桥梁"""
 
-    # 信号定义
-    started = pyqtSignal(dict)
-    progress = pyqtSignal(dict)
-    finished = pyqtSignal(dict)
-    error = pyqtSignal(dict)
-    log = pyqtSignal(dict)
+    # 信号定义（暴露给 QWebChannel，必须用可序列化的 QVariantMap 而非 dict/
+    # PyQt_PyObject，否则 emit 给前端时会触发 C++ 类型转换崩溃）
+    started = pyqtSignal('QVariantMap')
+    progress = pyqtSignal('QVariantMap')
+    finished = pyqtSignal('QVariantMap')
+    error = pyqtSignal('QVariantMap')
+    log = pyqtSignal('QVariantMap')
 
     def __init__(self, window):
         super().__init__()
@@ -270,7 +271,7 @@ class Bridge(QObject):
         """获取用户主目录"""
         return str(Path.home())
 
-    @pyqtSlot(result=dict)
+    @pyqtSlot(result='QVariantMap')
     def get_default_config(self) -> dict:
         """获取默认配置"""
         return {
@@ -282,7 +283,7 @@ class Bridge(QObject):
             'enableSimplifiedChinese': True,
         }
 
-    @pyqtSlot(result=dict)
+    @pyqtSlot(result='QVariantMap')
     def get_dashboard_stats(self) -> dict:
         """聚合统计：累计歌曲数、成功率、处理容量、任务数（来自 SQLite）。"""
         try:
@@ -309,7 +310,7 @@ class Bridge(QObject):
             print(f"[ERROR] 读取活跃度失败: {e}")
             return []
 
-    @pyqtSlot(str, result=dict)
+    @pyqtSlot(str, result='QVariantMap')
     def scan_directory(self, path: str) -> dict:
         """扫描目录获取文件夹和文件列表"""
         try:
@@ -350,7 +351,7 @@ class Bridge(QObject):
             print(f"[ERROR] 扫描目录失败: {e}")
             return {'subfolders': [], 'files': []}
 
-    @pyqtSlot(str, result=dict)
+    @pyqtSlot(str, result='QVariantMap')
     def get_music_file_details(self, file_path: str) -> dict:
         """获取音乐文件详情"""
         try:

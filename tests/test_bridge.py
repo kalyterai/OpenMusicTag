@@ -215,5 +215,56 @@ class BridgeStorageReadTests(unittest.TestCase):
         self.assertIn("weekday", activity[0])
 
 
+class WebChannelTypeSafetyTests(unittest.TestCase):
+    """回归守护：暴露给 QWebChannel 的信号/数据槽不能是 PyQt_PyObject，
+    否则 emit/return 给前端时会触发 C++ 类型转换崩溃（SIGABRT）。
+    """
+
+    def setUp(self):
+        from PyQt6.QtCore import QMetaMethod
+        self._QMetaMethod = QMetaMethod
+        self.bridge = Bridge(window=None)
+        self.mo = self.bridge.metaObject()
+
+    def _iter_methods(self):
+        for i in range(self.mo.methodCount()):
+            yield self.mo.method(i)
+
+    def test_webchannel_signals_use_qvariantmap(self):
+        signal_type = self._QMetaMethod.MethodType.Signal
+        exposed = {"started", "progress", "finished", "error", "log"}
+        seen = set()
+        for m in self._iter_methods():
+            if m.methodType() != signal_type:
+                continue
+            name = bytes(m.name()).decode()
+            if name in exposed:
+                seen.add(name)
+                params = [bytes(p).decode() for p in m.parameterTypes()]
+                self.assertNotIn("PyQt_PyObject", params,
+                                 f"信号 {name} 仍是 PyQt_PyObject，会导致前端 emit 崩溃")
+                self.assertEqual(params, ["QVariantMap"])
+        self.assertEqual(seen, exposed)
+
+    def test_data_slots_return_serializable_types(self):
+        expected = {
+            "get_dashboard_stats": "QVariantMap",
+            "scan_directory": "QVariantMap",
+            "get_default_config": "QVariantMap",
+            "get_music_file_details": "QVariantMap",
+            "get_recent_tasks": "QVariantList",
+            "get_daily_activity": "QVariantList",
+            "get_common_directories": "QVariantList",
+        }
+        seen = {}
+        for m in self._iter_methods():
+            name = bytes(m.name()).decode()
+            if name in expected:
+                seen[name] = m.typeName()
+        for name, want in expected.items():
+            self.assertEqual(seen.get(name), want,
+                             f"槽 {name} 返回类型应为 {want}（不能是 PyQt_PyObject）")
+
+
 if __name__ == "__main__":
     unittest.main()
