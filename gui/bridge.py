@@ -556,33 +556,6 @@ class MainWindow(QMainWindow):
         if icon_path.exists():
             self.setWindowIcon(QIcon(str(icon_path)))
 
-    def apply_macos_titlebar(self):
-        """macOS：隐藏原生标题栏，内容延伸至顶部（保留红绿灯按钮）。
-
-        效果等同于 VSCode / Codex 等应用的「无独立标题栏」外观。
-        需在 show() 之后调用（此时 winId 才是有效的 NSView 句柄）。
-        """
-        if sys.platform != 'darwin':
-            return
-        try:
-            import objc
-            from AppKit import (
-                NSWindowStyleMaskFullSizeContentView,
-                NSWindowTitleHidden,
-            )
-
-            ns_view = objc.objc_object(c_void_p=int(self.winId()))
-            ns_window = ns_view.window()
-            ns_window.setTitlebarAppearsTransparent_(True)
-            ns_window.setTitleVisibility_(NSWindowTitleHidden)
-            ns_window.setStyleMask_(
-                ns_window.styleMask() | NSWindowStyleMaskFullSizeContentView
-            )
-            # 允许拖拽窗口背景空白区域来移动窗口
-            ns_window.setMovableByWindowBackground_(True)
-        except Exception as e:  # 任何失败都退回到原生标题栏，不影响启动
-            print(f"[WARN] 应用 macOS 标题栏样式失败: {e}")
-
     def closeEvent(self, event):
         """关闭窗口时的事件"""
         if self.bridge.is_processing():
@@ -649,7 +622,6 @@ def main():
     # 创建并显示窗口
     window = MainWindow()
     window.show()
-    window.apply_macos_titlebar()
 
     sys.exit(app.exec())
 

@@ -53,8 +53,6 @@ def main():
     # 创建并显示窗口
     window = MainWindow()
     window.show()
-    # show() 之后再应用 macOS 无标题栏样式（此时原生窗口句柄才有效）
-    window.apply_macos_titlebar()
 
     sys.exit(app.exec())
 
