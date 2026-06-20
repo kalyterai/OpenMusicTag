@@ -118,9 +118,8 @@ textarea:focus-visible {
   width: 0;
   min-width: 0;
   min-height: 0;
-  overflow: auto;
-  overflow: overlay;
-  scrollbar-gutter: auto;
+  overflow-x: hidden;
+  overflow-y: scroll;
 }
 
 .page {
@@ -402,7 +401,7 @@ textarea:focus-visible {
   gap: 10px;
   min-height: 0;
   padding: 14px;
-  overflow-y: auto;
+  overflow-y: scroll;
 }
 
 .task-song-skeleton {
@@ -554,9 +553,7 @@ textarea:focus-visible {
 .library-scroll-list {
   min-height: 0;
   flex: 1;
-  overflow-y: auto;
-  overflow-y: overlay;
-  scrollbar-gutter: auto;
+  overflow-y: scroll;
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -592,9 +589,7 @@ textarea:focus-visible {
   padding: 24px;
   display: grid;
   gap: 20px;
-  overflow-y: auto;
-  overflow-y: overlay;
-  scrollbar-gutter: auto;
+  overflow-y: scroll;
 }
 
 .library-detail-overview {
