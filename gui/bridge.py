@@ -488,6 +488,7 @@ class Bridge(QObject):
     def get_music_file_details(self, file_path: str) -> dict:
         """获取音乐文件详情"""
         try:
+            import base64
             import mutagen
 
             file_path = Path(file_path)
@@ -495,6 +496,7 @@ class Bridge(QObject):
                 return {}
 
             tags = {}
+            cover_data_url = ''
 
             try:
                 audio = mutagen.File(str(file_path), easy=True)
@@ -521,6 +523,37 @@ class Bridge(QObject):
                                 return stringify(value)
                     return ''
 
+                def image_data_url(data, mime='image/jpeg'):
+                    if not data:
+                        return ''
+                    encoded = base64.b64encode(bytes(data)).decode('ascii')
+                    return f"data:{mime or 'image/jpeg'};base64,{encoded}"
+
+                def get_cover_data_url():
+                    source = raw_audio or audio
+                    pictures = getattr(source, 'pictures', None)
+                    if pictures:
+                        picture = pictures[0]
+                        return image_data_url(getattr(picture, 'data', b''), getattr(picture, 'mime', 'image/jpeg'))
+
+                    tags_source = getattr(source, 'tags', None)
+                    if not tags_source:
+                        return ''
+
+                    values = tags_source.values() if hasattr(tags_source, 'values') else []
+                    for value in values:
+                        if value.__class__.__name__ == 'APIC':
+                            return image_data_url(getattr(value, 'data', b''), getattr(value, 'mime', 'image/jpeg'))
+
+                    covr = tags_source.get('covr') if hasattr(tags_source, 'get') else None
+                    if covr:
+                        first = covr[0] if isinstance(covr, (list, tuple)) else covr
+                        imageformat = getattr(first, 'imageformat', None)
+                        mime = 'image/png' if imageformat == 14 else 'image/jpeg'
+                        return image_data_url(first, mime)
+
+                    return ''
+
                 tags = {
                     'title': get_tag('title', 'TITLE', 'TIT2'),
                     'artist': get_tag('artist', 'ARTIST', 'TPE1'),
@@ -537,6 +570,7 @@ class Bridge(QObject):
                     minutes = duration // 60
                     seconds = duration % 60
                     tags['duration'] = f"{minutes}:{seconds:02d}"
+                cover_data_url = get_cover_data_url()
 
             except Exception as e:
                 print(f"[WARN] 读取标签失败: {e}")
@@ -550,6 +584,7 @@ class Bridge(QObject):
                 'genre': tags.get('genre', ''),
                 'track': tags.get('track', ''),
                 'duration': tags.get('duration', '--:--'),
+                'coverDataUrl': cover_data_url,
             }
 
             return tags

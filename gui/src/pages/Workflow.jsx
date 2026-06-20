@@ -60,30 +60,20 @@ function StepRail({ currentStep }) {
   ];
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+    <div className="workflow-rail">
       {steps.map((step) => {
         const active = currentStep === step.id;
         const done = currentStep > step.id;
         return (
           <div
             key={step.id}
-            className="panel"
-            style={{
-              padding: 14,
-              boxShadow: 'none',
-              background: active || done ? 'var(--groove-soft)' : 'var(--panel)',
-              borderColor: active || done ? 'rgba(31, 95, 99, 0.32)' : 'var(--line)',
-            }}
+            className={`workflow-step ${active ? 'is-active' : ''} ${done ? 'is-done' : ''}`}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span className={done ? 'chip chip-green' : (active ? 'chip chip-blue' : 'chip')} style={{ width: 32, height: 32, justifyContent: 'center', padding: 0 }}>
-                {done ? <Icons.Check /> : step.id}
-              </span>
-              <span>
-                <span style={{ display: 'block', fontWeight: 850, color: 'var(--ink)' }}>{step.title}</span>
-                <span style={{ display: 'block', marginTop: 2, color: 'var(--muted)', fontSize: 12 }}>{step.note}</span>
-              </span>
-            </div>
+            <span className="workflow-step-dot">{done ? <Icons.Check /> : ''}</span>
+            <span>
+              <span className="workflow-step-title">{step.title}</span>
+              <span className="workflow-step-note">{step.note}</span>
+            </span>
           </div>
         );
       })}
@@ -258,7 +248,6 @@ export default function Workflow() {
             选择输入与输出目录，启用需要的清洗、刮削和整理规则，然后交给 Pipeline 批量处理。
           </p>
         </div>
-        <span className="chip chip-blue">{localConfig.threads} 线程</span>
       </header>
 
       <StepRail currentStep={workflowStep} />
@@ -291,7 +280,6 @@ export default function Workflow() {
                   onPick={handleSelectOutput}
                   disabled={isProcessing}
                 />
-                <div className="waveform" />
                 <p style={{ color: 'var(--muted)', lineHeight: 1.7, margin: 0 }}>
                   输出文件会按「歌手/专辑」结构整理。建议输出到新目录，保留原文件作为备份。
                 </p>
@@ -365,7 +353,6 @@ export default function Workflow() {
           </div>
         ) : (
           <div style={{ padding: 22 }}>
-            <div className="waveform" style={{ marginBottom: 18 }} />
             <div className="review-grid">
               <div className="panel" style={{ padding: 16, boxShadow: 'none' }}>
                 <h2 className="panel-title" style={{ marginBottom: 14 }}>路径复核</h2>
@@ -395,8 +382,8 @@ export default function Workflow() {
           </div>
         )}
 
-        <div style={{ padding: 16, borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-          <div className="toolbar">
+        <div className="workflow-actions">
+          <div className="workflow-actions-group">
             {workflowStep > 1 && (
               <button type="button" onClick={() => setWorkflowStep(Math.max(1, workflowStep - 1))} className="btn btn-secondary">
                 <Icons.Back />
@@ -404,7 +391,7 @@ export default function Workflow() {
               </button>
             )}
           </div>
-          <div className="toolbar">
+          <div className="workflow-actions-group">
             <button type="button" onClick={handleCancel} className="btn btn-secondary">
               取消
             </button>

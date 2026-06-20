@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { APP_INFO } from '../utils/constants';
 
 const Icon = ({ children }) => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -7,17 +8,6 @@ const Icon = ({ children }) => (
 );
 
 const Icons = {
-  Globe: () => (
-    <Icon>
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12h18M12 3a15 15 0 010 18M12 3a15 15 0 000 18M4.5 7.5h15M4.5 16.5h15" />
-    </Icon>
-  ),
-  Palette: () => (
-    <Icon>
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3a9 9 0 00-9 9 7 7 0 007 7h1.2a1.8 1.8 0 001.2-3.15 1.4 1.4 0 01.9-2.45H15a6 6 0 000-12h-3z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7.5 10h.01M9.5 6.8h.01M14 6.8h.01M16.5 10h.01" />
-    </Icon>
-  ),
   Layout: () => (
     <Icon>
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5h16v14H4zM9 5v14M4 10h5" />
@@ -31,6 +21,17 @@ const Icons = {
   Check: () => (
     <Icon>
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    </Icon>
+  ),
+  Info: () => (
+    <Icon>
+      <circle cx="12" cy="12" r="9" strokeWidth={2} />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11v5M12 8h.01" />
+    </Icon>
+  ),
+  GitHub: () => (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19c-4 1.2-4-2-5.5-2.5M14 22v-3.9c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 00-1.3-3.2 4.3 4.3 0 00-.1-3.2s-1-.3-3.3 1.2a11.3 11.3 0 00-6 0C6 3.4 5 3.7 5 3.7a4.3 4.3 0 00-.1 3.2A4.6 4.6 0 003.5 10c0 4.6 2.8 5.7 5.5 6-.5.5-.8 1.1-.8 2.2V22" />
     </Icon>
   ),
 };
@@ -84,8 +85,6 @@ function SettingRow({ icon: IconComponent, title, description, children }) {
 export default function Settings() {
   const [saved, setSaved] = useState(false);
   const [prefs, setPrefs] = useState({
-    language: 'zh-CN',
-    theme: 'groove',
     density: 'comfortable',
     openLastWorkspace: true,
     enableAnimations: true,
@@ -116,24 +115,10 @@ export default function Settings() {
         <div className="panel-header">
           <div>
             <h2 className="panel-title">界面与启动</h2>
-            <p className="panel-subtitle">语言、颜色、密度和启动行为</p>
+            <p className="panel-subtitle">只保留跨任务生效的软件偏好</p>
           </div>
         </div>
         <div style={{ padding: '0 18px' }}>
-          <SettingRow icon={Icons.Globe} title="界面语言" description="控制菜单、页面标题和提示文本语言">
-            <select className="input" value={prefs.language} onChange={(e) => updatePref('language', e.target.value)} style={{ width: 150 }}>
-              <option value="zh-CN">简体中文</option>
-              <option value="zh-TW">繁体中文</option>
-              <option value="en-US">English</option>
-            </select>
-          </SettingRow>
-          <SettingRow icon={Icons.Palette} title="颜色主题" description="选择软件整体视觉主题">
-            <select className="input" value={prefs.theme} onChange={(e) => updatePref('theme', e.target.value)} style={{ width: 150 }}>
-              <option value="groove">声纹纸面</option>
-              <option value="system">跟随系统</option>
-              <option value="contrast">高对比</option>
-            </select>
-          </SettingRow>
           <SettingRow icon={Icons.Layout} title="界面密度" description="控制列表行高和面板间距">
             <select className="input" value={prefs.density} onChange={(e) => updatePref('density', e.target.value)} style={{ width: 150 }}>
               <option value="comfortable">舒展</option>
@@ -145,6 +130,28 @@ export default function Settings() {
           </SettingRow>
           <SettingRow icon={Icons.Layout} title="启用界面动画" description="保留轻量过渡；关闭后减少动态效果">
             <Toggle checked={prefs.enableAnimations} onChange={(value) => updatePref('enableAnimations', value)} />
+          </SettingRow>
+        </div>
+      </section>
+
+      <section className="panel" style={{ overflow: 'hidden', marginTop: 16 }}>
+        <div className="panel-header">
+          <div>
+            <h2 className="panel-title">关于软件</h2>
+            <p className="panel-subtitle">版本、版权和开源仓库</p>
+          </div>
+        </div>
+        <div style={{ padding: '0 18px' }}>
+          <SettingRow icon={Icons.Info} title="当前版本号" description={APP_INFO.description}>
+            <span className="chip chip-blue">v{APP_INFO.version}</span>
+          </SettingRow>
+          <SettingRow icon={Icons.Info} title="版权信息" description={APP_INFO.copyright}>
+            <span className="chip">{APP_INFO.license}</span>
+          </SettingRow>
+          <SettingRow icon={Icons.GitHub} title="GitHub" description="查看源码、提交 issue 或跟进发布记录">
+            <a className="btn btn-secondary" href={APP_INFO.github} target="_blank" rel="noreferrer">
+              打开仓库
+            </a>
           </SettingRow>
         </div>
       </section>

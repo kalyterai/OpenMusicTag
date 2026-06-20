@@ -123,7 +123,6 @@ function ActivityChart({ data }) {
         <span className="chip chip-blue">本周</span>
       </div>
       <div style={{ padding: 18 }}>
-        <div className="waveform" style={{ marginBottom: 18 }} />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 10, alignItems: 'end', height: 170 }}>
           {days.map((day) => {
             const value = data[day] || 0;

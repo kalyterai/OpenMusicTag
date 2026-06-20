@@ -327,9 +327,9 @@ textarea:focus-visible {
 }
 
 .library-inspector-body {
-  padding: 22px 24px 24px;
+  padding: 18px 24px 24px;
   display: grid;
-  gap: 18px;
+  gap: 20px;
   overflow-y: auto;
 }
 
@@ -337,34 +337,72 @@ textarea:focus-visible {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-content: flex-start;
+}
+
+.library-detail-overview {
+  display: grid;
+  grid-template-columns: minmax(160px, 28%) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.library-artwork {
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(31, 95, 99, 0.10), rgba(183, 110, 31, 0.08));
+}
+
+.library-artwork img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.library-artwork-empty {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 780;
 }
 
 .detail-grid {
   min-width: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  column-gap: 26px;
+  row-gap: 12px;
 }
 
 .library-info-field {
   min-width: 0;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: rgba(255, 253, 247, 0.72);
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+  padding: 0 0 11px;
+  border-bottom: 1px solid rgba(222, 212, 195, 0.72);
 }
 
 .library-info-label {
   color: var(--muted);
   font-size: 12px;
   font-weight: 850;
-  margin-bottom: 8px;
+  margin-bottom: 0;
 }
 
 .library-info-field > div:last-child {
-  min-height: 32px;
   color: var(--ink);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 760;
   line-height: 1.35;
   overflow-wrap: anywhere;
@@ -373,21 +411,6 @@ textarea:focus-visible {
 .library-info-field .mono {
   font-size: 12px;
   font-weight: 650;
-}
-
-.library-path-block {
-  min-width: 0;
-  padding: 16px;
-  border: 1px solid rgba(31, 95, 99, 0.18);
-  border-radius: var(--radius);
-  background: rgba(214, 236, 231, 0.38);
-}
-
-.library-path-block .mono {
-  color: var(--ink-soft);
-  font-size: 12px;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
 }
 
 .library-extra-tags {
@@ -416,6 +439,81 @@ textarea:focus-visible {
   grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
 }
 
+.workflow-rail {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 8px 0 4px;
+}
+
+.workflow-rail::before {
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 28px;
+  height: 2px;
+  background: var(--line);
+}
+
+.workflow-step {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--muted);
+  text-align: center;
+}
+
+.workflow-step-dot {
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 2px solid var(--line);
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--muted);
+}
+
+.workflow-step.is-active .workflow-step-dot,
+.workflow-step.is-done .workflow-step-dot {
+  border-color: rgba(31, 95, 99, 0.34);
+  background: var(--groove);
+  color: #fffdf7;
+}
+
+.workflow-step-title {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.workflow-step-note {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.workflow-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.workflow-actions-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .review-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 0.7fr);
@@ -439,22 +537,10 @@ textarea:focus-visible {
   position: relative;
   min-height: 122px;
   padding: 16px;
-  overflow: hidden;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow-soft);
-}
-
-.metric-card::after {
-  content: "";
-  position: absolute;
-  inset: auto 0 0 0;
-  height: 28px;
-  background:
-    linear-gradient(90deg, transparent, rgba(31, 95, 99, 0.10), transparent),
-    repeating-linear-gradient(90deg, rgba(22, 20, 19, 0.08) 0 1px, transparent 1px 9px);
-  opacity: 0.55;
 }
 
 .metric-label {
@@ -603,19 +689,6 @@ textarea:focus-visible {
   border-color: rgba(54, 95, 145, 0.18);
 }
 
-.waveform {
-  min-height: 56px;
-  border: 1px solid rgba(31, 95, 99, 0.20);
-  border-radius: var(--radius);
-  background:
-    linear-gradient(to top, transparent 47%, rgba(31, 95, 99, 0.25) 48%, rgba(31, 95, 99, 0.25) 52%, transparent 53%),
-    repeating-linear-gradient(90deg,
-      rgba(31, 95, 99, 0.14) 0 2px,
-      transparent 2px 8px,
-      rgba(183, 110, 31, 0.18) 8px 10px,
-      transparent 10px 18px);
-}
-
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -754,9 +827,43 @@ textarea:focus-visible {
     overflow: visible;
   }
 
+  .library-detail-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .library-artwork {
+    max-width: 220px;
+  }
+
   .detail-grid,
   .library-extra-grid {
     grid-template-columns: 1fr;
+  }
+
+  .workflow-rail {
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-rail::before {
+    display: none;
+  }
+
+  .workflow-step {
+    grid-template-columns: 42px minmax(0, 1fr);
+    justify-items: start;
+    text-align: left;
+  }
+
+  .workflow-step > span:last-child {
+    min-width: 0;
+  }
+
+  .workflow-actions {
+    flex-direction: column;
+  }
+
+  .workflow-actions-group {
+    justify-content: flex-start;
   }
 
   .library-inspector-head,

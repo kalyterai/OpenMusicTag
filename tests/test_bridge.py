@@ -162,7 +162,7 @@ class MusicFileDetailsTests(unittest.TestCase):
             self.assertEqual(details["title"], "测试标题")
             self.assertEqual(details["artist"], "测试艺人")
             # 契约：始终返回完整字段集
-            for key in ("title", "artist", "album", "year", "genre", "track", "duration"):
+            for key in ("title", "artist", "album", "year", "genre", "track", "duration", "coverDataUrl"):
                 self.assertIn(key, details)
 
     def test_missing_file_returns_empty_dict(self):

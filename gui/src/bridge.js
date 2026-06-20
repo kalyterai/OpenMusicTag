@@ -49,7 +49,7 @@ function getMockResult(method, args) {
     return 0;
   }
   if (method === 'get_music_file_details') {
-    return {};
+    return { coverDataUrl: '' };
   }
   if (method === 'get_common_directories') {
     return ['/Users', '/Documents', '/Music', '/Downloads'];

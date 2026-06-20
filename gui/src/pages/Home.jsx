@@ -46,6 +46,13 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
     </Icon>
   ),
+  Disc: () => (
+    <Icon size="w-12 h-12">
+      <circle cx="12" cy="12" r="8" strokeWidth={1.8} />
+      <circle cx="12" cy="12" r="2.4" strokeWidth={1.8} />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 4v3M12 17v3M4 12h3M17 12h3" />
+    </Icon>
+  ),
 };
 
 function extTone(ext = '') {
@@ -109,13 +116,30 @@ function LibraryItemRow({ item, selected, onOpenFolder, onOpenFile }) {
 function DetailField({ label, value, mono = false }) {
   return (
     <div className="library-info-field">
-      <div className="library-info-label">{label}</div>
+      <div className="library-info-label">{label}：</div>
       <div
         className={mono ? 'mono' : undefined}
         style={{ color: value ? 'var(--ink)' : 'var(--faint)' }}
       >
         {value || '-'}
       </div>
+    </div>
+  );
+}
+
+function ArtworkFrame({ file }) {
+  const cover = file.coverDataUrl || file.cover_data_url || file.artwork || file.picture;
+
+  return (
+    <div className="library-artwork">
+      {cover ? (
+        <img src={cover} alt={`${file.name || '音频'}封面`} />
+      ) : (
+        <div className="library-artwork-empty">
+          <Icons.Disc />
+          <span>未读取到封面</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -141,13 +165,16 @@ function FileDetailPanel({ file, onClose }) {
       </div>
 
       <div className="library-inspector-body">
-        <div className="library-inspector-summary">
-          <span className={`chip ${extTone(file.ext)}`}>{(file.ext || 'file').toUpperCase()}</span>
-          <span className={score >= 70 ? 'chip chip-green' : 'chip chip-amber'}>
-            <Icons.Check />
-            标签完整度 {score}%
-          </span>
-          <span className="chip chip-blue">{file.bytes ? formatFileSize(file.bytes) : '大小未知'}</span>
+        <div className="library-detail-overview">
+          <ArtworkFrame file={file} />
+          <div className="library-inspector-summary">
+            <span className={`chip ${extTone(file.ext)}`}>{(file.ext || 'file').toUpperCase()}</span>
+            <span className={score >= 70 ? 'chip chip-green' : 'chip chip-amber'}>
+              <Icons.Check />
+              标签完整度 {score}%
+            </span>
+            <span className="chip chip-blue">{file.bytes ? formatFileSize(file.bytes) : '大小未知'}</span>
+          </div>
         </div>
 
         <div className="detail-grid">
@@ -159,11 +186,6 @@ function FileDetailPanel({ file, onClose }) {
           <DetailField label="音轨" value={file.track || tags.track} />
           <DetailField label="时长" value={file.duration} />
           <DetailField label="大小" value={file.bytes ? formatFileSize(file.bytes) : ''} />
-        </div>
-
-        <div className="library-path-block">
-          <div className="library-info-label">文件路径</div>
-          <div className="mono">{file.path || '-'}</div>
         </div>
 
         {extraTags.length > 0 && (
