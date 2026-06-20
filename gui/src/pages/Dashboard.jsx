@@ -219,7 +219,7 @@ function RecentTasksCard({ tasks, onViewAll, isLoading }) {
 }
 
 export default function Dashboard() {
-  const { setCurrentPage } = useAppStore();
+  const { setCurrentPage, resetWorkflow } = useAppStore();
   const { callQt } = useQtBridge();
   const [stats, setStats] = useState(null);
   const [weeklyData, setWeeklyData] = useState({});
@@ -253,6 +253,10 @@ export default function Dashboard() {
   const totalSongs = stats?.total_songs ?? 0;
   const successRate = stats?.success_rate ?? 0;
   const failed = stats?.failed ?? 0;
+  const handleNewScrape = () => {
+    resetWorkflow();
+    setCurrentPage('scrape');
+  };
 
   return (
     <div className="page animate-fadeIn">
@@ -269,7 +273,7 @@ export default function Dashboard() {
             <Icons.Folder />
             查看资源库
           </button>
-          <button type="button" className="btn btn-primary" onClick={() => setCurrentPage('scrape')}>
+          <button type="button" className="btn btn-primary" onClick={handleNewScrape}>
             新建刮削
             <Icons.Arrow />
           </button>

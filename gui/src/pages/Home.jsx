@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import useAppStore from '../stores/appStore';
 import { useQtBridge } from '../bridge';
 import { formatFileSize } from '../utils/format';
+import { deriveOutputPath } from '../utils/paths';
 import logo from '../assets/logo.png';
 
 const Icon = ({ children, size = 'w-5 h-5' }) => (
@@ -370,6 +371,19 @@ export default function Home() {
     handleFolderClick(normalized.slice(0, idx));
   };
 
+  const handleCreateScrapeFromCurrentPath = () => {
+    const inputPath = store.currentPath || selectedFolder;
+    if (!inputPath) return;
+
+    store.resetWorkflow();
+    store.updateWorkflowConfig({
+      inputPath,
+      outputPath: deriveOutputPath(inputPath),
+    });
+    store.setWorkflowStep(2);
+    store.setCurrentPage('scrape');
+  };
+
   const handleFileClick = async (file) => {
     try {
       const details = await getMusicFileDetails(file.path);
@@ -449,10 +463,13 @@ export default function Home() {
 
       {store.currentPath && (
         <div className="library-root-row">
-          <span>当前根目录</span>
+          <span>当前目录</span>
           <span className="library-current-path mono" title={store.currentPath}>
             {store.currentPath}
           </span>
+          <button type="button" className="btn btn-secondary" onClick={handleCreateScrapeFromCurrentPath}>
+            用当前目录新建刮削
+          </button>
         </div>
       )}
 

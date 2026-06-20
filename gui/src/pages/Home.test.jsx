@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import Home from './Home';
 import useAppStore from '../stores/appStore';
 
@@ -85,6 +85,26 @@ describe('Home 资源库详情 - 真实数据', () => {
     expect(row).toBeInTheDocument();
     expect(container.querySelector('.middle-ellipsis-start')).toBeInTheDocument();
     expect(container.querySelector('.middle-ellipsis-end')).toBeInTheDocument();
+  });
+
+  it('可以用当前目录直接新建刮削并进入运行配置', () => {
+    useAppStore.setState({
+      currentPath: '/music/jay',
+      workflowStep: 1,
+      workflowConfig: {
+        inputPath: '',
+        outputPath: '',
+      },
+      currentPage: 'files',
+    });
+    render(<Home />);
+
+    fireEvent.click(screen.getByText('用当前目录新建刮削'));
+
+    expect(useAppStore.getState().currentPage).toBe('scrape');
+    expect(useAppStore.getState().workflowStep).toBe(2);
+    expect(useAppStore.getState().workflowConfig.inputPath).toBe('/music/jay');
+    expect(useAppStore.getState().workflowConfig.outputPath).toBe('/music/jay_OUTPUT');
   });
 
   it('进入页面不会注入假统计数据', () => {

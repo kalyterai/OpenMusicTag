@@ -29,12 +29,23 @@ describe('Sidebar 品牌/Logo 对齐', () => {
     expect(img.getAttribute('src') || '').toMatch(/logo/i);
   });
 
-  it('渲染全部导航项并能切换当前页', () => {
+  it('渲染主导航项并能切换当前页', () => {
     render(<Sidebar />);
     expect(screen.getByText('控制面板')).toBeInTheDocument();
     expect(screen.getByText('资源库详情')).toBeInTheDocument();
+    expect(screen.queryByText('任务编排')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText('资源库详情'));
     expect(useAppStore.getState().currentPage).toBe('files');
+  });
+
+  it('把新建刮削作为固定主操作而非普通导航项', () => {
+    useAppStore.setState({ currentPage: 'files', workflowStep: 3 });
+    render(<Sidebar />);
+
+    fireEvent.click(screen.getByText('+ 新建刮削'));
+
+    expect(useAppStore.getState().currentPage).toBe('scrape');
+    expect(useAppStore.getState().workflowStep).toBe(1);
   });
 });

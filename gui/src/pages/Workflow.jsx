@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import useAppStore, { useWorkflowConfig } from '../stores/appStore';
 import { useQtBridge } from '../bridge';
+import { deriveOutputPath } from '../utils/paths';
 
 const Icon = ({ children }) => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -81,26 +82,7 @@ function StepRail({ currentStep }) {
   );
 }
 
-export function deriveOutputPath(inputPath) {
-  const raw = String(inputPath || '').trim();
-  if (!raw) return '';
-
-  const normalized = raw.replace(/[\\/]+$/, '');
-  const slashIndex = normalized.lastIndexOf('/');
-  const backslashIndex = normalized.lastIndexOf('\\');
-  const index = Math.max(slashIndex, backslashIndex);
-  const separator = backslashIndex > slashIndex ? '\\' : '/';
-
-  const folderName = index >= 0 ? normalized.slice(index + 1) : normalized;
-  if (!folderName) return '';
-
-  const outputName = `${folderName}_OUTPUT`;
-  if (index < 0) return outputName;
-
-  const parent = normalized.slice(0, index);
-  if (!parent) return `${separator}${outputName}`;
-  return `${parent}${separator}${outputName}`;
-}
+export { deriveOutputPath };
 
 function withDerivedOutputPath(config) {
   return {

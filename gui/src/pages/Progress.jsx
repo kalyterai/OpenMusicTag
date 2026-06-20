@@ -147,6 +147,7 @@ export default function Progress() {
     failCount,
     setCurrentPage,
     resetTask,
+    resetWorkflow,
     addHistory,
   } = useAppStore();
   const { cancelTask, callQt } = useQtBridge();
@@ -172,6 +173,10 @@ export default function Progress() {
       ? 100
       : (selectedTotal > 0 ? Math.round((selectedProcessed / selectedTotal) * 100) : 0))
     : progress;
+  const handleNewScrape = () => {
+    resetWorkflow();
+    setCurrentPage('scrape');
+  };
   const remaining = useMemo(() => {
     if (taskStatus !== 'processing' || processedFiles <= 0 || progress <= 0) return '计算中';
     const elapsedSeconds = Math.max((Date.now() - startTime.current) / 1000, 1);
@@ -259,7 +264,7 @@ export default function Progress() {
             <h1 className="page-title">任务详情</h1>
             <p className="page-copy">先选择一个任务批次，再查看处理统计、运行配置和该任务写入的歌曲。</p>
           </div>
-          <button type="button" className="btn btn-secondary" onClick={() => setCurrentPage('scrape')}>新建刮削</button>
+          <button type="button" className="btn btn-secondary" onClick={handleNewScrape}>新建刮削</button>
         </header>
 
         <section className="panel task-list-panel">
@@ -338,6 +343,7 @@ export default function Progress() {
         </div>
         <div className="toolbar">
           <button type="button" className="btn btn-secondary" onClick={() => setSelectedTask(null)}>返回任务列表</button>
+          <button type="button" className="btn btn-secondary" onClick={handleNewScrape}>再建一个任务</button>
           <StatusBadge status={selectedTask.status === 'failed' || selectedTask.status === 'error' ? 'error' : (selectedTask.status === 'running' ? 'processing' : 'info')}>
             {selectedTask.status || statusText}
           </StatusBadge>

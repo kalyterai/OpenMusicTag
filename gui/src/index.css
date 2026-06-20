@@ -216,7 +216,7 @@ textarea:focus-visible {
 .library-root-row {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
   width: 100%;
@@ -231,6 +231,11 @@ textarea:focus-visible {
 .library-root-row > span:first-child {
   font-size: 12px;
   font-weight: 850;
+}
+
+.library-root-row .btn {
+  min-height: 34px;
+  padding: 7px 11px;
 }
 
 .panel {
@@ -1197,6 +1202,14 @@ textarea:focus-visible {
 
   .library-current-path {
     max-width: 100%;
+    width: 100%;
+  }
+
+  .library-root-row {
+    grid-template-columns: 1fr;
+  }
+
+  .library-root-row .btn {
     width: 100%;
   }
 

@@ -54,13 +54,23 @@ const Icons = {
 const menuItems = [
   { id: 'dashboard', label: '控制面板', description: '总览', icon: Icons.Dashboard },
   { id: 'files', label: '资源库详情', description: '文件与标签', icon: Icons.Files },
-  { id: 'scrape', label: '新建刮削', description: '任务编排', icon: Icons.Scrape },
   { id: 'progress', label: '任务详情', description: '进度与日志', icon: Icons.Progress },
   { id: 'tags', label: '标签库', description: '映射规则', icon: Icons.Tags },
 ];
 
 export default function Sidebar() {
-  const { currentPage, setCurrentPage, sidebarCollapsed, setSidebarCollapsed } = useAppStore();
+  const {
+    currentPage,
+    setCurrentPage,
+    sidebarCollapsed,
+    setSidebarCollapsed,
+    resetWorkflow,
+  } = useAppStore();
+
+  const handleNewScrape = () => {
+    resetWorkflow();
+    setCurrentPage('scrape');
+  };
 
   return (
     <aside
@@ -102,6 +112,34 @@ export default function Sidebar() {
             </div>
           </div>
         )}
+      </div>
+
+      <div style={{ padding: 10, borderBottom: '1px solid rgba(255, 253, 247, 0.10)' }}>
+        <button
+          type="button"
+          onClick={handleNewScrape}
+          title={sidebarCollapsed ? '新建刮削' : undefined}
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+            gap: 10,
+            minHeight: 42,
+            padding: sidebarCollapsed ? 0 : '8px 10px',
+            border: '1px solid rgba(217, 177, 96, 0.34)',
+            borderRadius: 8,
+            background: currentPage === 'scrape' ? 'rgba(217, 177, 96, 0.24)' : 'rgba(217, 177, 96, 0.16)',
+            color: '#fffdf7',
+            cursor: 'pointer',
+            transition: 'background 160ms ease, border-color 160ms ease',
+          }}
+        >
+          <span style={{ color: '#d9b160' }}>
+            <Icons.Scrape />
+          </span>
+          {!sidebarCollapsed && <span style={{ fontSize: 14, fontWeight: 850 }}>+ 新建刮削</span>}
+        </button>
       </div>
 
       <nav style={{ flex: 1, padding: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
