@@ -357,10 +357,10 @@ textarea:focus-visible {
 
 .table-skeleton-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) 96px 64px 64px 64px minmax(140px, 0.8fr);
+  grid-template-columns: 56px minmax(220px, 1.4fr) 96px 64px 64px 64px minmax(140px, 0.8fr) minmax(140px, 0.8fr);
   gap: 14px;
   align-items: center;
-  min-width: 760px;
+  min-width: 940px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--line);
 }

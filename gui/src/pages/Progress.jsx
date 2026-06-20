@@ -285,6 +285,8 @@ export default function Progress() {
                   <span />
                   <span />
                   <span />
+                  <span />
+                  <span />
                 </div>
               ))}
             </div>
@@ -301,17 +303,20 @@ export default function Progress() {
               <table className="table">
                 <thead>
                   <tr>
+                    <th>任务ID</th>
                     <th>输入目录</th>
                     <th>状态</th>
                     <th>文件</th>
                     <th>成功</th>
                     <th>失败</th>
                     <th>开始时间</th>
+                    <th>结束时间</th>
                   </tr>
                 </thead>
                 <tbody>
                   {tasks.map((task) => (
                     <tr key={task.id} onClick={() => handleSelectTask(task)} style={{ cursor: 'pointer' }}>
+                      <td className="mono">{task.id}</td>
                       <td className="mono" style={{ maxWidth: 360 }}>
                         <div className="truncate-1">{task.input_path}</div>
                       </td>
@@ -319,7 +324,8 @@ export default function Progress() {
                       <td>{task.total || 0}</td>
                       <td>{task.success || 0}</td>
                       <td>{task.failed || 0}</td>
-                      <td>{(task.started_at || '').replace('T', ' ')}</td>
+                      <td>{(task.started_at || '').replace('T', ' ') || '-'}</td>
+                      <td>{(task.finished_at || '').replace('T', ' ') || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
