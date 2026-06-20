@@ -280,18 +280,21 @@ textarea:focus-visible {
   grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.95fr);
   gap: 16px;
   margin-top: 16px;
-  align-items: start;
+  align-items: stretch;
   min-width: 0;
   width: 100%;
 }
 
 .dashboard-panel {
+  display: flex;
+  flex-direction: column;
   min-height: 302px;
   overflow: hidden;
 }
 
 .dashboard-panel-body {
   display: flex;
+  flex: 1;
   flex-direction: column;
   min-height: 236px;
   padding: 18px;
