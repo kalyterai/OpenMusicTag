@@ -63,13 +63,6 @@ function extTone(ext = '') {
   return 'chip-blue';
 }
 
-function metadataScore(file) {
-  if (!file) return 0;
-  const fields = ['title', 'artist', 'album', 'year', 'genre', 'track'];
-  const filled = fields.filter((field) => Boolean(file[field] || file.tags?.[field])).length;
-  return Math.round((filled / fields.length) * 100);
-}
-
 function LibraryItemRow({ item, selected, onOpenFolder, onOpenFile }) {
   const isFolder = item.kind === 'folder';
   const ext = item.ext || '';
@@ -147,45 +140,25 @@ function ArtworkFrame({ file }) {
 function FileDetailPanel({ file, onClose }) {
   if (!file) return null;
 
-  const score = metadataScore(file);
   const tags = file.tags && typeof file.tags === 'object' ? file.tags : {};
   const extraTags = Object.entries(tags).filter(([key]) => !['title', 'artist', 'album', 'year', 'genre', 'track'].includes(key));
 
   return (
     <section className="library-inspector animate-slideIn">
-      <div className="library-inspector-head">
-        <div style={{ minWidth: 0 }}>
-          <p className="page-kicker">Selected audio</p>
-          <h2 className="library-inspector-title truncate-1">文件信息</h2>
-          <p className="panel-subtitle truncate-1">{file.name}</p>
-        </div>
-        <button type="button" className="btn btn-ghost" onClick={onClose} aria-label="关闭详情">
-          <Icons.Close />
-        </button>
-      </div>
-
       <div className="library-inspector-body">
         <div className="library-detail-overview">
           <ArtworkFrame file={file} />
-          <div className="library-inspector-summary">
-            <span className={`chip ${extTone(file.ext)}`}>{(file.ext || 'file').toUpperCase()}</span>
-            <span className={score >= 70 ? 'chip chip-green' : 'chip chip-amber'}>
-              <Icons.Check />
-              标签完整度 {score}%
-            </span>
-            <span className="chip chip-blue">{file.bytes ? formatFileSize(file.bytes) : '大小未知'}</span>
+          <div className="detail-grid">
+            <DetailField label="文件" value={file.name} />
+            <DetailField label="标题" value={file.title || tags.title} />
+            <DetailField label="艺人" value={file.artist || tags.artist} />
+            <DetailField label="专辑" value={file.album || tags.album} />
+            <DetailField label="年份" value={file.year || tags.year} />
+            <DetailField label="流派" value={file.genre || tags.genre} />
+            <DetailField label="音轨" value={file.track || tags.track} />
+            <DetailField label="时长" value={file.duration} />
+            <DetailField label="大小" value={file.bytes ? formatFileSize(file.bytes) : ''} />
           </div>
-        </div>
-
-        <div className="detail-grid">
-          <DetailField label="标题" value={file.title || tags.title} />
-          <DetailField label="艺人" value={file.artist || tags.artist} />
-          <DetailField label="专辑" value={file.album || tags.album} />
-          <DetailField label="年份" value={file.year || tags.year} />
-          <DetailField label="流派" value={file.genre || tags.genre} />
-          <DetailField label="音轨" value={file.track || tags.track} />
-          <DetailField label="时长" value={file.duration} />
-          <DetailField label="大小" value={file.bytes ? formatFileSize(file.bytes) : ''} />
         </div>
 
         {extraTags.length > 0 && (
@@ -210,7 +183,7 @@ function EmptyInspector() {
       <div>
         <h2 className="library-inspector-title">选择一首文件查看信息</h2>
         <p className="panel-subtitle">
-          这里会展示标题、艺人、专辑、年份、流派、音轨、文件路径和原始标签字段。文件队列只负责选择，真正的检查工作在这里完成。
+          这里会展示封面、标题、艺人、专辑、年份、流派、音轨和原始标签字段。文件队列只负责选择，真正的检查工作在这里完成。
         </p>
       </div>
     </section>

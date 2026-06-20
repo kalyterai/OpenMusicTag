@@ -308,15 +308,6 @@ textarea:focus-visible {
   min-height: 0;
 }
 
-.library-inspector-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 22px 24px 18px;
-  border-bottom: 1px solid var(--line);
-}
-
 .library-inspector-title {
   margin: 0;
   color: var(--ink);
@@ -327,23 +318,16 @@ textarea:focus-visible {
 }
 
 .library-inspector-body {
-  padding: 18px 24px 24px;
+  padding: 24px;
   display: grid;
   gap: 20px;
   overflow-y: auto;
 }
 
-.library-inspector-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-content: flex-start;
-}
-
 .library-detail-overview {
   display: grid;
-  grid-template-columns: minmax(160px, 28%) minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
+  gap: 24px;
   align-items: start;
 }
 
@@ -439,6 +423,18 @@ textarea:focus-visible {
   grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
 }
 
+.workflow-path-stack {
+  display: grid;
+}
+
+.workflow-path-section {
+  padding: 22px;
+}
+
+.workflow-path-section + .workflow-path-section {
+  border-top: 1px solid var(--line);
+}
+
 .workflow-rail {
   position: relative;
   display: grid;
@@ -479,6 +475,8 @@ textarea:focus-visible {
   border-radius: 50%;
   background: var(--panel);
   color: var(--muted);
+  font-size: 14px;
+  font-weight: 850;
 }
 
 .workflow-step.is-active .workflow-step-dot,
@@ -866,7 +864,6 @@ textarea:focus-visible {
     justify-content: flex-start;
   }
 
-  .library-inspector-head,
   .library-inspector-body {
     padding-inline: 16px;
   }

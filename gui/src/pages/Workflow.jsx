@@ -69,7 +69,7 @@ function StepRail({ currentStep }) {
             key={step.id}
             className={`workflow-step ${active ? 'is-active' : ''} ${done ? 'is-done' : ''}`}
           >
-            <span className="workflow-step-dot">{done ? <Icons.Check /> : ''}</span>
+            <span className="workflow-step-dot">{step.id}</span>
             <span>
               <span className="workflow-step-title">{step.title}</span>
               <span className="workflow-step-note">{step.note}</span>
@@ -79,6 +79,27 @@ function StepRail({ currentStep }) {
       })}
     </div>
   );
+}
+
+export function deriveOutputPath(inputPath) {
+  const raw = String(inputPath || '').trim();
+  if (!raw) return '';
+
+  const normalized = raw.replace(/[\\/]+$/, '');
+  const slashIndex = normalized.lastIndexOf('/');
+  const backslashIndex = normalized.lastIndexOf('\\');
+  const index = Math.max(slashIndex, backslashIndex);
+  const separator = backslashIndex > slashIndex ? '\\' : '/';
+
+  const folderName = index >= 0 ? normalized.slice(index + 1) : normalized;
+  if (!folderName) return '';
+
+  const outputName = `${folderName}_OUTPUT`;
+  if (index < 0) return outputName;
+
+  const parent = normalized.slice(0, index);
+  if (!parent) return `${separator}${outputName}`;
+  return `${parent}${separator}${outputName}`;
 }
 
 function SwitchRow({ icon: IconComponent, title, description, checked, onChange }) {
@@ -170,26 +191,47 @@ export default function Workflow() {
   const { selectDirectory, startProcess } = useQtBridge();
   const [localConfig, setLocalConfig] = useState(workflowConfig);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [outputPathManuallyChanged, setOutputPathManuallyChanged] = useState(false);
 
   useEffect(() => {
-    setLocalConfig(workflowConfig);
+    setLocalConfig({
+      ...workflowConfig,
+      outputPath: workflowConfig.outputPath || deriveOutputPath(workflowConfig.inputPath),
+    });
+    setOutputPathManuallyChanged(false);
   }, [workflowConfig]);
 
   const handleConfigChange = (key, value) => {
     setLocalConfig((prev) => ({ ...prev, [key]: value }));
   };
 
+  const handleInputPathChange = (value) => {
+    setLocalConfig((prev) => ({
+      ...prev,
+      inputPath: value,
+      outputPath: outputPathManuallyChanged ? prev.outputPath : deriveOutputPath(value),
+    }));
+  };
+
   const handleSelectInput = async () => {
     const path = await selectDirectory(localConfig.inputPath);
     if (path) {
-      handleConfigChange('inputPath', path);
-      updateWorkflowConfig({ inputPath: path });
+      const nextOutputPath = outputPathManuallyChanged && localConfig.outputPath
+        ? localConfig.outputPath
+        : deriveOutputPath(path);
+      setLocalConfig((prev) => ({
+        ...prev,
+        inputPath: path,
+        outputPath: nextOutputPath,
+      }));
+      updateWorkflowConfig({ inputPath: path, outputPath: nextOutputPath });
     }
   };
 
   const handleSelectOutput = async () => {
     const path = await selectDirectory(localConfig.outputPath);
     if (path) {
+      setOutputPathManuallyChanged(true);
       handleConfigChange('outputPath', path);
       updateWorkflowConfig({ outputPath: path });
     }
@@ -254,34 +296,37 @@ export default function Workflow() {
 
       <section className="panel" style={{ overflow: 'hidden' }}>
         {workflowStep === 1 ? (
-          <div className="workflow-grid">
-            <div style={{ padding: 22, borderRight: '1px solid var(--line)' }}>
+          <div className="workflow-path-stack">
+            <div className="workflow-path-section">
               <h2 className="panel-title" style={{ marginBottom: 18 }}>输入目录</h2>
               <div style={{ display: 'grid', gap: 18 }}>
                 <PathPicker
                   label="输入目录"
                   value={localConfig.inputPath}
                   placeholder="选择包含音乐文件的目录"
-                  onChange={(value) => handleConfigChange('inputPath', value)}
+                  onChange={handleInputPathChange}
                   onPick={handleSelectInput}
                   disabled={isProcessing}
                 />
               </div>
             </div>
 
-            <div style={{ padding: 22 }}>
+            <div className="workflow-path-section">
               <h2 className="panel-title" style={{ marginBottom: 18 }}>输出目录</h2>
               <div style={{ display: 'grid', gap: 18 }}>
                 <PathPicker
                   label="输出目录"
                   value={localConfig.outputPath}
                   placeholder="选择整理后的保存位置"
-                  onChange={(value) => handleConfigChange('outputPath', value)}
+                  onChange={(value) => {
+                    setOutputPathManuallyChanged(true);
+                    handleConfigChange('outputPath', value);
+                  }}
                   onPick={handleSelectOutput}
                   disabled={isProcessing}
                 />
                 <p style={{ color: 'var(--muted)', lineHeight: 1.7, margin: 0 }}>
-                  输出文件会按「歌手/专辑」结构整理。建议输出到新目录，保留原文件作为备份。
+                  默认使用输入目录的同级目录，并在目录名后追加 _OUTPUT。输出文件会按「歌手/专辑」结构整理。
                 </p>
               </div>
             </div>

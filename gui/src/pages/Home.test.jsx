@@ -56,7 +56,9 @@ describe('Home 资源库详情 - 真实数据', () => {
     expect(screen.queryByText('待处理文件')).not.toBeInTheDocument();
     expect(browserColumn?.querySelector('.library-unified-list')).toBeInTheDocument();
     expect(container.querySelector('.library-inspector')).toBeInTheDocument();
-    expect(screen.getByText('文件信息')).toBeInTheDocument();
+    expect(container.querySelector('.library-artwork')).toBeInTheDocument();
+    expect(screen.getByText('文件：')).toBeInTheDocument();
+    expect(screen.queryByText('文件信息')).not.toBeInTheDocument();
   });
 
   it('子文件夹文件数使用真实 fileCount（非随机数）', () => {
