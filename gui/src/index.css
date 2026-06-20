@@ -876,6 +876,11 @@ textarea:focus-visible {
   min-width: 0;
 }
 
+.workflow-review-line {
+  grid-template-columns: minmax(0, 0.5fr) minmax(0, 1.5fr);
+  align-items: start;
+}
+
 .workflow-setting-label {
   display: block;
   color: var(--ink);

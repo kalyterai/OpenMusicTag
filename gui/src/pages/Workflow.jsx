@@ -371,20 +371,6 @@ export default function Workflow() {
         ) : workflowStep === 2 ? (
           <div className="workflow-config-stack">
             <section className="workflow-config-section">
-              <h2 className="panel-title">处理性能</h2>
-              <NumberSetting
-                label="处理线程数"
-                description="网络共享目录建议使用较低线程数，本地 SSD 可适当提高。"
-                value={localConfig.threads}
-                min="1"
-                max="16"
-                suffix="线程"
-                onChange={(value) => handleConfigChange('threads', clampThreads(value))}
-                disabled={isProcessing}
-              />
-            </section>
-
-            <section className="workflow-config-section">
               <h2 className="panel-title">处理规则</h2>
               <div className="workflow-switch-stack">
                 <SwitchRow
@@ -441,6 +427,16 @@ export default function Workflow() {
 
             <section className="workflow-config-section">
               <h2 className="panel-title">刮削参数</h2>
+              <NumberSetting
+                label="处理线程数"
+                description="网络共享目录建议使用较低线程数，本地 SSD 可适当提高。"
+                value={localConfig.threads}
+                min="1"
+                max="16"
+                suffix="线程"
+                onChange={(value) => handleConfigChange('threads', clampThreads(value))}
+                disabled={isProcessing}
+              />
               <NumberSetting
                 label="匹配可信度阈值"
                 description="低于阈值的候选元数据不会作为高可信结果使用。"
