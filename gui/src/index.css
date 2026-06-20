@@ -119,6 +119,8 @@ textarea:focus-visible {
   min-width: 0;
   min-height: 0;
   overflow: auto;
+  overflow: overlay;
+  scrollbar-gutter: auto;
 }
 
 .page {
@@ -128,6 +130,19 @@ textarea:focus-visible {
   min-height: 100%;
   padding: 28px;
   overflow-x: hidden;
+}
+
+.library-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.library-page .page-header {
+  flex: 0 0 auto;
+  margin-bottom: 18px;
 }
 
 .page-narrow {
@@ -416,8 +431,9 @@ textarea:focus-visible {
   align-items: stretch;
   width: 100%;
   max-width: 100%;
-  height: calc(100vh - 190px);
-  min-height: 560px;
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -467,6 +483,8 @@ textarea:focus-visible {
   min-height: 0;
   flex: 1;
   overflow-y: auto;
+  overflow-y: overlay;
+  scrollbar-gutter: auto;
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -503,6 +521,8 @@ textarea:focus-visible {
   display: grid;
   gap: 20px;
   overflow-y: auto;
+  overflow-y: overlay;
+  scrollbar-gutter: auto;
 }
 
 .library-detail-overview {

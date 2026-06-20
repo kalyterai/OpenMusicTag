@@ -20,6 +20,10 @@ from core.pipeline import MusicOrganizerPipeline
 from core.config import AppConfig
 
 APP_BASE_TITLE = "OpenMusicTag - 音乐整理工具"
+APP_DEFAULT_WIDTH = 1200
+APP_DEFAULT_HEIGHT = 800
+APP_MIN_WIDTH = 1100
+APP_MIN_HEIGHT = 700
 
 
 def apply_macos_application_icon(icon_path: Path) -> None:
@@ -844,8 +848,8 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle(APP_BASE_TITLE)
-        self.setMinimumSize(1100, 700)
-        self.resize(1200, 800)
+        self.setMinimumSize(APP_MIN_WIDTH, APP_MIN_HEIGHT)
+        self.resize(APP_DEFAULT_WIDTH, APP_DEFAULT_HEIGHT)
 
         # 设置窗口图标
         self.set_icon()

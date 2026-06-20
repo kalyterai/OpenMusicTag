@@ -438,7 +438,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="page animate-fadeIn">
+    <div className="page library-page animate-fadeIn">
       <header className="page-header">
         <div>
           <p className="page-kicker">Library inspector</p>
