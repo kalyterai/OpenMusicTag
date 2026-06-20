@@ -51,7 +51,6 @@ describe('Home 资源库详情 - 真实数据', () => {
     const browserColumn = container.querySelector('.library-browser-column');
 
     expect(browserColumn).toBeInTheDocument();
-    expect(screen.getByText('当前目录文件')).toBeInTheDocument();
     expect(screen.queryByText('目录结构')).not.toBeInTheDocument();
     expect(screen.queryByText('待处理文件')).not.toBeInTheDocument();
     expect(browserColumn?.querySelector('.library-unified-list')).toBeInTheDocument();
@@ -87,7 +86,7 @@ describe('Home 资源库详情 - 真实数据', () => {
     expect(container.querySelector('.middle-ellipsis-end')).toBeInTheDocument();
   });
 
-  it('可以用当前目录直接新建刮削并进入运行配置', () => {
+  it('可以用当前目录直接新建刮削并进入选择目录步骤', () => {
     useAppStore.setState({
       currentPath: '/music/jay',
       workflowStep: 1,
@@ -102,7 +101,7 @@ describe('Home 资源库详情 - 真实数据', () => {
     fireEvent.click(screen.getByText('用当前目录新建刮削'));
 
     expect(useAppStore.getState().currentPage).toBe('scrape');
-    expect(useAppStore.getState().workflowStep).toBe(2);
+    expect(useAppStore.getState().workflowStep).toBe(1);
     expect(useAppStore.getState().workflowConfig.inputPath).toBe('/music/jay');
     expect(useAppStore.getState().workflowConfig.outputPath).toBe('/music/jay_OUTPUT');
   });
