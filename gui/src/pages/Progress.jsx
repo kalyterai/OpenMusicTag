@@ -135,6 +135,93 @@ function LogItem({ log }) {
   );
 }
 
+function StageStats({ rows, title, subtitle }) {
+  return (
+    <section className="panel" style={{ padding: 16 }}>
+      <div style={{ marginBottom: 12 }}>
+        <h2 className="panel-title">{title}</h2>
+        {subtitle && <p className="panel-subtitle" style={{ marginTop: 4 }}>{subtitle}</p>}
+      </div>
+      {rows.length === 0 ? (
+        <div className="empty-state" style={{ minHeight: 120 }}>
+          <Icons.Info />
+          <div style={{ marginTop: 8, fontSize: 13 }}>暂无环节数据</div>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 8 }}>
+          {rows.map((row) => {
+            const total = row.total || 0;
+            const failed = row.failed || 0;
+            const failRate = total > 0 ? Math.round((failed / total) * 100) : 0;
+            return (
+              <div key={row.stage} style={{ display: 'grid', gap: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13 }}>
+                  <span style={{ fontWeight: 750, color: 'var(--ink)' }} className="truncate-1">{row.stage}</span>
+                  <span style={{ color: failed > 0 ? 'var(--red)' : 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>
+                    {failed > 0 ? `${failed} 失败 / ${total}` : `${total}`}
+                  </span>
+                </div>
+                <div style={{ height: 6, borderRadius: 999, overflow: 'hidden', background: 'rgba(222, 212, 195, 0.72)' }}>
+                  <div style={{ width: `${failRate}%`, height: '100%', background: 'var(--red)' }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SongResultRow({ song }) {
+  const isFailed = song.status === 'failed';
+  const chipClass = song.status === 'success' ? 'chip-green' : isFailed ? 'chip-red' : 'chip-amber';
+  return (
+    <article className="panel" style={{ padding: 12, boxShadow: 'none' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          <div className="truncate-1" style={{ fontWeight: 850, color: 'var(--ink)' }}>{song.title || song.source_path}</div>
+          <div className="truncate-1" style={{ marginTop: 4, color: 'var(--muted)', fontSize: 12 }}>
+            {song.artist || '未知艺人'} / {song.album || '未知专辑'}
+          </div>
+        </div>
+        <span className={`chip ${chipClass}`}>{song.status}</span>
+      </div>
+      {isFailed && (song.failed_stage || song.error_message) && (
+        <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 6, background: 'var(--red-soft)', color: 'var(--red)', fontSize: 12 }}>
+          {song.failed_stage && <span style={{ fontWeight: 800 }}>{song.failed_stage}</span>}
+          {song.error_message && <span style={{ marginLeft: song.failed_stage ? 8 : 0 }}>{song.error_message}</span>}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function LogRecord({ record }) {
+  const status = record.status || 'info';
+  const chipClass = status === 'success' ? 'chip-green' : status === 'failed' ? 'chip-red' : 'chip-amber';
+  return (
+    <article className="panel" style={{ padding: 12, boxShadow: 'none' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+        <div className="truncate-1 mono" style={{ minWidth: 0, fontSize: 12, color: 'var(--ink-soft)' }}>{record.source}</div>
+        <span className={`chip ${chipClass}`}>{status}</span>
+      </div>
+      <div style={{ marginTop: 8, display: 'grid', gap: 4 }}>
+        {(record.stages || []).map((stage, index) => (
+          <div key={`${stage.stage}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12 }}>
+            <span className="truncate-1" style={{ color: stage.status === 'failed' ? 'var(--red)' : 'var(--muted)' }}>
+              {stage.stage}{stage.message ? ` · ${stage.message}` : ''}
+            </span>
+            <span style={{ flex: '0 0 auto', color: stage.status === 'failed' ? 'var(--red)' : 'var(--faint)', fontVariantNumeric: 'tabular-nums' }}>
+              {stage.status}{stage.duration_ms ? ` ${stage.duration_ms}ms` : ''}
+            </span>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
 export default function Progress() {
   const {
     taskStatus,
@@ -158,6 +245,11 @@ export default function Progress() {
   const [selectedTask, setSelectedTask] = useState(null);
   const [taskSongs, setTaskSongs] = useState([]);
   const [taskSongsReady, setTaskSongsReady] = useState(false);
+  const [globalStageStats, setGlobalStageStats] = useState([]);
+  const [stageStats, setStageStats] = useState([]);
+  const [detailView, setDetailView] = useState('songs');
+  const [taskLog, setTaskLog] = useState([]);
+  const [logReady, setLogReady] = useState(false);
   const startTime = useRef(Date.now());
   const recordedTerminalStatus = useRef(null);
 
@@ -213,10 +305,15 @@ export default function Progress() {
     let active = true;
     (async () => {
       try {
-        const list = await callQt('get_recent_tasks', 50);
-        if (active) setTasks(list || []);
+        const [list, stats] = await Promise.all([
+          callQt('get_recent_tasks', 50),
+          callQt('get_stage_failure_stats', 0),
+        ]);
+        if (!active) return;
+        setTasks(list || []);
+        setGlobalStageStats(stats || []);
       } catch (e) {
-        if (active) setTasks([]);
+        if (active) { setTasks([]); setGlobalStageStats([]); }
       } finally {
         if (active) setTasksReady(true);
       }
@@ -228,14 +325,44 @@ export default function Progress() {
     setSelectedTask(task);
     setTaskSongs([]);
     setTaskSongsReady(false);
+    setDetailView('songs');
+    setTaskLog([]);
+    setLogReady(false);
+    setStageStats([]);
     try {
-      const songs = await callQt('get_task_songs', task.id, 80, 0);
+      const [songs, stats] = await Promise.all([
+        callQt('get_task_songs', task.id, 80, 0),
+        callQt('get_stage_failure_stats', task.id),
+      ]);
       setTaskSongs(songs || []);
+      setStageStats(stats || []);
     } catch (e) {
       setTaskSongs([]);
+      setStageStats([]);
     } finally {
       setTaskSongsReady(true);
     }
+  };
+
+  const handleShowLog = async () => {
+    setDetailView('log');
+    if (logReady || !selectedTask) return;
+    try {
+      const records = await callQt('get_task_log', selectedTask.id, 1000);
+      setTaskLog(records || []);
+    } catch (e) {
+      setTaskLog([]);
+    } finally {
+      setLogReady(true);
+    }
+  };
+
+  const handleOpenLog = () => {
+    if (selectedTask) callQt('open_task_log', selectedTask.id).catch(() => {});
+  };
+
+  const handleExportLog = () => {
+    if (selectedTask) callQt('export_task_log', selectedTask.id).catch(() => {});
   };
 
   const handleStop = async () => {
@@ -333,6 +460,14 @@ export default function Progress() {
             </div>
           )}
         </section>
+
+        <div style={{ marginTop: 16 }}>
+          <StageStats
+            rows={globalStageStats}
+            title="环节失败统计"
+            subtitle="跨所有任务，哪个环节最容易出问题"
+          />
+        </div>
       </div>
     );
   }
@@ -388,6 +523,10 @@ export default function Progress() {
             </div>
           </section>
 
+          {stageStats.length > 0 && (
+            <StageStats rows={stageStats} title="环节统计" subtitle="本任务各环节的成功/失败" />
+          )}
+
           <div style={{ display: 'grid', gap: 8 }}>
             {selectedTask.status === 'running' && taskStatus === 'processing' && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -416,30 +555,71 @@ export default function Progress() {
         <section className="panel task-detail-panel">
           <div className="panel-header">
             <div>
-              <h2 className="panel-title">{selectedTask.status === 'running' ? '实时日志' : '任务歌曲'}</h2>
-              <p className="panel-subtitle">{selectedTask.status === 'running' ? 'Pipeline 输出的处理事件' : '该任务写入数据库的单曲结果'}</p>
+              <h2 className="panel-title">
+                {selectedTask.status === 'running' ? '实时日志' : (detailView === 'log' ? '详细日志' : '歌曲结果')}
+              </h2>
+              <p className="panel-subtitle">
+                {selectedTask.status === 'running'
+                  ? 'Pipeline 输出的处理事件'
+                  : (detailView === 'log' ? '每首歌每个环节的明细（来自 JSONL 日志）' : '该任务写入数据库的单曲结果')}
+              </p>
             </div>
-            <label className="chip" style={{ cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={autoScroll}
-                onChange={(e) => setAutoScroll(e.target.checked)}
-                style={{ accentColor: 'var(--groove)' }}
-              />
-              自动滚动
-            </label>
+            {selectedTask.status === 'running' ? (
+              <label className="chip" style={{ cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={autoScroll}
+                  onChange={(e) => setAutoScroll(e.target.checked)}
+                  style={{ accentColor: 'var(--groove)' }}
+                />
+                自动滚动
+              </label>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <button
+                  type="button"
+                  className={detailView === 'songs' ? 'btn btn-primary' : 'btn btn-secondary'}
+                  onClick={() => setDetailView('songs')}
+                >
+                  歌曲结果
+                </button>
+                <button
+                  type="button"
+                  className={detailView === 'log' ? 'btn btn-primary' : 'btn btn-secondary'}
+                  onClick={handleShowLog}
+                >
+                  详细日志
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={handleOpenLog}>打开</button>
+                <button type="button" className="btn btn-secondary" onClick={handleExportLog}>导出</button>
+              </div>
+            )}
           </div>
 
           <div id="logs-container" className="task-detail-scroll">
             {selectedTask.status !== 'running' ? (
-              !taskSongsReady ? (
+              detailView === 'log' ? (
+                !logReady ? (
+                  <div className="task-song-skeleton">
+                    {[0, 1, 2, 3, 4].map((item) => (
+                      <div key={item} className="dashboard-task-skeleton"><span /><span /><span /></div>
+                    ))}
+                  </div>
+                ) : taskLog.length === 0 ? (
+                  <div className="empty-state">
+                    <Icons.File />
+                    <div style={{ marginTop: 10, fontWeight: 850, color: 'var(--ink)' }}>没有日志记录</div>
+                    <div style={{ marginTop: 4, fontSize: 13 }}>该任务可能在记录环节日志的功能上线前运行。</div>
+                  </div>
+                ) : (
+                  taskLog.map((record, index) => (
+                    <LogRecord key={`${record.song_id || record.source}-${index}`} record={record} />
+                  ))
+                )
+              ) : !taskSongsReady ? (
                 <div className="task-song-skeleton">
                   {[0, 1, 2, 3, 4].map((item) => (
-                    <div key={item} className="dashboard-task-skeleton">
-                      <span />
-                      <span />
-                      <span />
-                    </div>
+                    <div key={item} className="dashboard-task-skeleton"><span /><span /><span /></div>
                   ))}
                 </div>
               ) : taskSongs.length === 0 ? (
@@ -449,17 +629,7 @@ export default function Progress() {
                 </div>
               ) : (
                 taskSongs.map((song) => (
-                  <article key={song.id} className="panel" style={{ padding: 12, boxShadow: 'none' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                      <div style={{ minWidth: 0 }}>
-                        <div className="truncate-1" style={{ fontWeight: 850, color: 'var(--ink)' }}>{song.title || song.source_path}</div>
-                        <div className="truncate-1" style={{ marginTop: 4, color: 'var(--muted)', fontSize: 12 }}>
-                          {song.artist || '未知艺人'} / {song.album || '未知专辑'}
-                        </div>
-                      </div>
-                      <span className={`chip ${song.status === 'success' ? 'chip-green' : song.status === 'failed' ? 'chip-red' : 'chip-amber'}`}>{song.status}</span>
-                    </div>
-                  </article>
+                  <SongResultRow key={song.id} song={song} />
                 ))
               )
             ) : progressLogs.length === 0 ? (
