@@ -359,37 +359,31 @@ export default function Workflow() {
         {workflowStep === 1 ? (
           <div className="workflow-path-stack">
             <div className="workflow-path-section">
-              <h2 className="panel-title" style={{ marginBottom: 18 }}>输入目录</h2>
-              <div style={{ display: 'grid', gap: 18 }}>
-                <PathPicker
-                  label="输入目录"
-                  value={localConfig.inputPath}
-                  placeholder="选择包含音乐文件的目录"
-                  onChange={handleInputPathChange}
-                  onPick={handleSelectInput}
-                  disabled={isProcessing}
-                />
-              </div>
+              <PathPicker
+                label="输入目录"
+                value={localConfig.inputPath}
+                placeholder="选择包含音乐文件的目录"
+                onChange={handleInputPathChange}
+                onPick={handleSelectInput}
+                disabled={isProcessing}
+              />
             </div>
 
             <div className="workflow-path-section">
-              <h2 className="panel-title" style={{ marginBottom: 18 }}>输出目录</h2>
-              <div style={{ display: 'grid', gap: 18 }}>
-                <PathPicker
-                  label="输出目录"
-                  value={localConfig.outputPath}
-                  placeholder="选择整理后的保存位置"
-                  onChange={(value) => {
-                    setOutputPathManuallyChanged(true);
-                    handleConfigChange('outputPath', value);
-                  }}
-                  onPick={handleSelectOutput}
-                  disabled={isProcessing}
-                />
-                <p style={{ color: 'var(--muted)', lineHeight: 1.7, margin: 0 }}>
-                  默认使用输入目录的同级目录，并在目录名后追加 _OUTPUT。输出文件会按「歌手/专辑」结构整理。
-                </p>
-              </div>
+              <PathPicker
+                label="输出目录"
+                value={localConfig.outputPath}
+                placeholder="选择整理后的保存位置"
+                onChange={(value) => {
+                  setOutputPathManuallyChanged(true);
+                  handleConfigChange('outputPath', value);
+                }}
+                onPick={handleSelectOutput}
+                disabled={isProcessing}
+              />
+              <p style={{ color: 'var(--muted)', lineHeight: 1.7, margin: '14px 0 0' }}>
+                默认使用输入目录的同级目录，并在目录名后追加 _OUTPUT。输出文件会按「歌手/专辑」结构整理。
+              </p>
             </div>
           </div>
         ) : workflowStep === 2 ? (

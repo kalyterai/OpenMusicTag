@@ -42,6 +42,12 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
     </svg>
   ),
+  Parent: () => (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 17l-5-5 5-5" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 12h11a4 4 0 014 4v1" />
+    </Icon>
+  ),
   Check: () => (
     <Icon>
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -76,44 +82,31 @@ function extTone(ext = '') {
 
 function LibraryItemRow({ item, selected, onOpenFolder, onOpenFile }) {
   const isFolder = item.kind === 'folder';
-  const ext = item.ext || '';
-  const count = item.fileCount ?? -1;
+  const displayName = isFolder ? `${item.name}/` : item.name;
 
   return (
     <button
       type="button"
       onClick={() => (isFolder ? onOpenFolder(item.path) : onOpenFile(item))}
-      className="panel"
-      style={{
-        width: '100%',
-        padding: 12,
-        boxShadow: 'none',
-        display: 'grid',
-        gridTemplateColumns: '34px minmax(0, 1fr) auto',
-        alignItems: 'center',
-        gap: 12,
-        textAlign: 'left',
-        cursor: 'pointer',
-        background: selected ? 'var(--groove-soft)' : 'var(--panel)',
-        borderColor: selected ? 'rgba(31, 95, 99, 0.38)' : 'var(--line)',
-      }}
+      className={`library-file-row ${selected ? 'is-selected' : ''}`}
+      title={displayName}
     >
-      <span className={`chip ${isFolder ? 'chip-amber' : extTone(ext)}`} style={{ width: 34, height: 34, padding: 0, justifyContent: 'center' }}>
-        {isFolder ? <Icons.Folder /> : <Icons.Music />}
-      </span>
-      <span style={{ minWidth: 0 }}>
-        <span className="truncate-1" style={{ display: 'block', fontWeight: 850, color: 'var(--ink)' }}>{item.name}</span>
-        <span style={{ display: 'block', marginTop: 3, color: 'var(--muted)', fontSize: 12 }}>
-          {isFolder
-            ? (count < 0 ? '文件夹 / 展开查看' : `${count} 个当前层音乐文件`)
-            : `${item.artist || '未知艺人'} / ${item.title || '未知标题'}`}
-        </span>
-      </span>
-      <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        <span className={`chip ${isFolder ? 'chip-amber' : extTone(ext)}`}>{isFolder ? 'DIR' : (ext ? ext.toUpperCase() : 'FILE')}</span>
-        {isFolder && <Icons.Arrow />}
-      </span>
+      <MiddleEllipsis text={displayName} />
     </button>
+  );
+}
+
+function MiddleEllipsis({ text }) {
+  const value = String(text || '');
+  const tailLength = Math.min(18, Math.max(8, Math.floor(value.length * 0.42)));
+  const head = value.length > tailLength ? value.slice(0, value.length - tailLength) : value;
+  const tail = value.length > tailLength ? value.slice(-tailLength) : '';
+
+  return (
+    <span className="middle-ellipsis">
+      <span className="middle-ellipsis-start">{head}</span>
+      {tail && <span className="middle-ellipsis-end">{tail}</span>}
+    </span>
   );
 }
 
@@ -448,16 +441,20 @@ export default function Home() {
           </p>
         </div>
         <div className="toolbar">
-          {store.currentPath && (
-            <span className="library-current-path mono" title={store.currentPath}>
-              {store.currentPath}
-            </span>
-          )}
           <button type="button" className="btn btn-primary" onClick={handleChooseRoot}>
             切换根目录
           </button>
         </div>
       </header>
+
+      {store.currentPath && (
+        <div className="library-root-row">
+          <span>当前根目录</span>
+          <span className="library-current-path mono" title={store.currentPath}>
+            {store.currentPath}
+          </span>
+        </div>
+      )}
 
       {!hasLibraryRoot && (
         <section className="panel library-start-panel">
@@ -481,15 +478,21 @@ export default function Home() {
               <div>
                 <h2 className="panel-title">当前目录文件</h2>
                 <p className="panel-subtitle">
-                  {visibleItems.length > 0 ? `${visibleItems.length} 项，只显示当前层级` : '当前目录暂无可展示文件'}
+                  {visibleItems.length > 0 ? `${visibleItems.length} 项` : '当前目录暂无可展示文件'}
                 </p>
               </div>
               <div className="library-section-actions">
                 <span className="chip">{store.subFolders.length} 目录</span>
                 <span className="chip">{store.currentFiles.length} 音频</span>
                 {store.currentPath && (
-                  <button type="button" className="btn btn-secondary" onClick={handleParentClick}>
-                    返回上一级
+                  <button
+                    type="button"
+                    className="btn btn-secondary library-parent-button"
+                    onClick={handleParentClick}
+                    aria-label="返回上一级"
+                    title="返回上一级"
+                  >
+                    <Icons.Parent />
                   </button>
                 )}
                 {loadingPath && (
@@ -521,7 +524,6 @@ export default function Home() {
                 <div className="empty-state">
                   <Icons.File />
                   <div style={{ marginTop: 10, fontWeight: 850, color: 'var(--ink)' }}>当前目录为空</div>
-                  <div style={{ marginTop: 4, fontSize: 13 }}>这里只展示当前层级的文件夹和音乐文件。</div>
                 </div>
               )}
             </div>

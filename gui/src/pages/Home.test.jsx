@@ -31,7 +31,7 @@ describe('Home 资源库详情 - 真实数据', () => {
 
   it('从 store 渲染子文件夹与音乐文件', () => {
     render(<Home />);
-    expect(screen.getByText('周杰伦')).toBeInTheDocument();
+    expect(screen.getByText('周杰伦/')).toBeInTheDocument();
     expect(screen.getByText('晴天.mp3')).toBeInTheDocument();
   });
 
@@ -64,7 +64,27 @@ describe('Home 资源库详情 - 真实数据', () => {
 
   it('子文件夹文件数使用真实 fileCount（非随机数）', () => {
     render(<Home />);
-    expect(screen.getByText(/12\s*个当前层音乐文件/)).toBeInTheDocument();
+    expect(screen.queryByText(/当前层/)).not.toBeInTheDocument();
+    expect(screen.getByTitle('周杰伦/')).toBeInTheDocument();
+  });
+
+  it('长文件名使用中间省略结构保留头尾', () => {
+    useAppStore.setState({
+      subFolders: [],
+      currentFiles: [
+        {
+          name: '一段非常非常非常长的现场录音文件名-2026-remaster.flac',
+          path: '/music/long.flac',
+          ext: '.flac',
+        },
+      ],
+    });
+    const { container } = render(<Home />);
+    const row = screen.getByTitle('一段非常非常非常长的现场录音文件名-2026-remaster.flac');
+
+    expect(row).toBeInTheDocument();
+    expect(container.querySelector('.middle-ellipsis-start')).toBeInTheDocument();
+    expect(container.querySelector('.middle-ellipsis-end')).toBeInTheDocument();
   });
 
   it('进入页面不会注入假统计数据', () => {
