@@ -166,6 +166,49 @@ function SwitchRow({ icon: IconComponent, title, description, checked, onChange 
   );
 }
 
+function NumberSetting({ label, description, value, min, max, suffix, onChange, disabled }) {
+  return (
+    <div className="workflow-setting-row">
+      <div>
+        <label className="workflow-setting-label">{label}</label>
+        <p className="workflow-setting-copy">{description}</p>
+      </div>
+      <div className="workflow-number-control">
+        <input
+          type="range"
+          min={min}
+          max={max}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          style={{ width: '100%', accentColor: 'var(--groove)' }}
+        />
+        <div className="workflow-number-input">
+          <input
+            type="number"
+            min={min}
+            max={max}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            disabled={disabled}
+            className="input"
+          />
+          {suffix && <span>{suffix}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReviewLine({ label, children }) {
+  return (
+    <div className="workflow-review-line">
+      <div className="workflow-setting-label">{label}</div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
 function PathPicker({ label, value, placeholder, onChange, onPick, disabled }) {
   return (
     <div>
@@ -248,7 +291,11 @@ export default function Workflow() {
 
   const canContinue = Boolean(localConfig.inputPath && localConfig.outputPath);
 
-  const clampThreads = (value) => Math.max(1, Math.min(16, parseInt(value, 10) || 1));
+  const clampNumber = (value, min, max) => Math.max(min, Math.min(max, parseInt(value, 10) || min));
+  const clampThreads = (value) => clampNumber(value, 1, 16);
+  const clampConfidence = (value) => clampNumber(value, 1, 100);
+  const clampTimeout = (value) => clampNumber(value, 1, 60);
+  const clampQuality = (value) => clampNumber(value, 50, 100);
 
   const handleNextStep = () => {
     if (workflowStep === 1 && !canContinue) return;
@@ -268,6 +315,11 @@ export default function Workflow() {
         enableDuplicateCheck: localConfig.enableDuplicateCheck,
         enableFilenameParse: localConfig.enableFilenameParse,
         enableMetadataScrape: localConfig.enableMetadataScrape,
+        preserveOriginal: localConfig.preserveOriginal,
+        autoOrganize: localConfig.autoOrganize,
+        confidenceThreshold: localConfig.confidenceThreshold,
+        coverTimeout: localConfig.coverTimeout,
+        coverQuality: localConfig.coverQuality,
       });
 
       addHistory({
@@ -341,39 +393,24 @@ export default function Workflow() {
             </div>
           </div>
         ) : workflowStep === 2 ? (
-          <div className="workflow-grid">
-            <div style={{ padding: 22 }}>
-              <h2 className="panel-title" style={{ marginBottom: 18 }}>处理线程数</h2>
-              <div className="panel" style={{ padding: 16, boxShadow: 'none' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 96px', gap: 12, alignItems: 'center' }}>
-                  <input
-                    type="range"
-                    min="1"
-                    max="16"
-                    value={localConfig.threads}
-                    onChange={(e) => handleConfigChange('threads', clampThreads(e.target.value))}
-                    disabled={isProcessing}
-                    style={{ width: '100%', accentColor: 'var(--groove)' }}
-                  />
-                  <input
-                    type="number"
-                    min="1"
-                    max="16"
-                    value={localConfig.threads}
-                    onChange={(e) => handleConfigChange('threads', clampThreads(e.target.value))}
-                    disabled={isProcessing}
-                    className="input"
-                  />
-                </div>
-                <p style={{ margin: '10px 0 0', color: 'var(--muted)', fontSize: 12 }}>
-                  网络共享目录建议使用较低线程数，本地 SSD 可适当提高。
-                </p>
-              </div>
-            </div>
+          <div className="workflow-config-stack">
+            <section className="workflow-config-section">
+              <h2 className="panel-title">处理性能</h2>
+              <NumberSetting
+                label="处理线程数"
+                description="网络共享目录建议使用较低线程数，本地 SSD 可适当提高。"
+                value={localConfig.threads}
+                min="1"
+                max="16"
+                suffix="线程"
+                onChange={(value) => handleConfigChange('threads', clampThreads(value))}
+                disabled={isProcessing}
+              />
+            </section>
 
-            <div style={{ padding: 22, borderLeft: '1px solid var(--line)' }}>
-              <h2 className="panel-title" style={{ marginBottom: 18 }}>刮削运行配置</h2>
-              <div style={{ display: 'grid', gap: 10 }}>
+            <section className="workflow-config-section">
+              <h2 className="panel-title">处理规则</h2>
+              <div className="workflow-switch-stack">
                 <SwitchRow
                   icon={Icons.Cover}
                   title="下载专辑封面"
@@ -396,43 +433,100 @@ export default function Workflow() {
                   onChange={(e) => handleConfigChange('enableDuplicateCheck', e.target.checked)}
                 />
                 <SwitchRow
+                  icon={Icons.Text}
+                  title="文件名解析"
+                  description="标签为空时从文件名补出艺人和标题"
+                  checked={localConfig.enableFilenameParse}
+                  onChange={(e) => handleConfigChange('enableFilenameParse', e.target.checked)}
+                />
+                <SwitchRow
                   icon={Icons.Database}
                   title="元数据刮削"
                   description="从 MusicBrainz 补全标签"
                   checked={localConfig.enableMetadataScrape}
                   onChange={(e) => handleConfigChange('enableMetadataScrape', e.target.checked)}
                 />
+                <SwitchRow
+                  icon={Icons.Folder}
+                  title="保留原文件"
+                  description="输出到新目录，原始文件继续作为备份"
+                  checked={localConfig.preserveOriginal}
+                  onChange={(e) => handleConfigChange('preserveOriginal', e.target.checked)}
+                />
+                <SwitchRow
+                  icon={Icons.Database}
+                  title="按歌手/专辑整理"
+                  description="输出目录使用统一的音乐库层级"
+                  checked={localConfig.autoOrganize}
+                  onChange={(e) => handleConfigChange('autoOrganize', e.target.checked)}
+                />
               </div>
-            </div>
+            </section>
+
+            <section className="workflow-config-section">
+              <h2 className="panel-title">刮削参数</h2>
+              <NumberSetting
+                label="匹配可信度阈值"
+                description="低于阈值的候选元数据不会作为高可信结果使用。"
+                value={localConfig.confidenceThreshold}
+                min="1"
+                max="100"
+                suffix="%"
+                onChange={(value) => handleConfigChange('confidenceThreshold', clampConfidence(value))}
+                disabled={isProcessing}
+              />
+              <NumberSetting
+                label="封面下载超时"
+                description="封面服务响应过慢时自动跳过，避免拖慢整批任务。"
+                value={localConfig.coverTimeout}
+                min="1"
+                max="60"
+                suffix="秒"
+                onChange={(value) => handleConfigChange('coverTimeout', clampTimeout(value))}
+                disabled={isProcessing}
+              />
+              <NumberSetting
+                label="封面写入质量"
+                description="控制下载封面转为 JPEG 后的压缩质量。"
+                value={localConfig.coverQuality}
+                min="50"
+                max="100"
+                suffix="%"
+                onChange={(value) => handleConfigChange('coverQuality', clampQuality(value))}
+                disabled={isProcessing}
+              />
+            </section>
           </div>
         ) : (
-          <div style={{ padding: 22 }}>
-            <div className="review-grid">
-              <div className="panel" style={{ padding: 16, boxShadow: 'none' }}>
-                <h2 className="panel-title" style={{ marginBottom: 14 }}>路径复核</h2>
-                <div style={{ display: 'grid', gap: 10 }}>
-                  <div>
-                    <div style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 800 }}>输入</div>
-                    <div className="mono" style={{ marginTop: 4, overflowWrap: 'anywhere' }}>{localConfig.inputPath}</div>
-                  </div>
-                  <div>
-                    <div style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 800 }}>输出</div>
-                    <div className="mono" style={{ marginTop: 4, overflowWrap: 'anywhere' }}>{localConfig.outputPath}</div>
-                  </div>
-                </div>
-              </div>
-              <div className="panel" style={{ padding: 16, boxShadow: 'none' }}>
-                <h2 className="panel-title" style={{ marginBottom: 14 }}>启用规则</h2>
+          <div className="workflow-config-stack">
+            <section className="workflow-config-section">
+              <h2 className="panel-title">启动前复核</h2>
+              <ReviewLine label="输入目录">
+                <div className="mono" style={{ overflowWrap: 'anywhere' }}>{localConfig.inputPath}</div>
+              </ReviewLine>
+              <ReviewLine label="输出目录">
+                <div className="mono" style={{ overflowWrap: 'anywhere' }}>{localConfig.outputPath}</div>
+              </ReviewLine>
+              <ReviewLine label="启用规则">
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {localConfig.enableCoverDownload && <span className="chip chip-green">封面</span>}
                   {localConfig.enableSimplifiedChinese && <span className="chip chip-green">繁简</span>}
                   {localConfig.enableDuplicateCheck && <span className="chip chip-green">查重</span>}
                   {localConfig.enableFilenameParse && <span className="chip chip-green">文件名解析</span>}
                   {localConfig.enableMetadataScrape && <span className="chip chip-green">MusicBrainz</span>}
-                  <span className="chip chip-amber">{localConfig.threads} 线程</span>
+                  {localConfig.preserveOriginal && <span className="chip chip-green">保留原文件</span>}
+                  {localConfig.autoOrganize && <span className="chip chip-green">整理目录</span>}
                 </div>
-              </div>
-            </div>
+              </ReviewLine>
+              <ReviewLine label="执行参数">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  <span className="chip chip-amber">{localConfig.threads} 线程</span>
+                  <span className="chip chip-amber">可信度 {localConfig.confidenceThreshold}%</span>
+                  <span className="chip chip-amber">封面超时 {localConfig.coverTimeout}s</span>
+                  <span className="chip chip-amber">封面质量 {localConfig.coverQuality}%</span>
+                </div>
+              </ReviewLine>
+            </section>
           </div>
         )}
 

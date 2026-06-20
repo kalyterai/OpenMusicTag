@@ -133,7 +133,7 @@ class Bridge(QObject):
 
         return [stage for stage in order if stage not in disabled]
 
-    @pyqtSlot(dict)
+    @pyqtSlot('QVariantMap')
     def start_scan(self, params: dict):
         """开始扫描目录"""
         input_path = params.get('input_path', '')
@@ -157,7 +157,7 @@ class Bridge(QObject):
             'total_files': 0  # 后续实现
         })
 
-    @pyqtSlot(dict)
+    @pyqtSlot('QVariantMap')
     def start_process(self, params: dict):
         """开始处理音乐文件"""
         if self.processing:
@@ -167,22 +167,34 @@ class Bridge(QObject):
             })
             return
 
-        input_path = params.get('input_path', '')
-        output_path = params.get('output_path', '')
-        threads = int(params.get('threads', 4) or 4)
-
-        if not input_path or not output_path:
-            self.error.emit({'message': '请选择输入和输出目录', 'code': 'INVALID_PATH'})
-            return
-
-        self.processing = True
-
         try:
+            params = dict(params or {})
+            input_path = params.get('input_path', '')
+            output_path = params.get('output_path', '')
+            threads = max(1, min(16, int(params.get('threads', 4) or 4)))
+
+            if not input_path or not output_path:
+                self.error.emit({'message': '请选择输入和输出目录', 'code': 'INVALID_PATH'})
+                return
+
+            self.processing = True
+
+            stage_config = {
+                'ScrapeMetadataStage': {
+                    'confidence_threshold': int(params.get('confidenceThreshold', 80) or 80),
+                },
+                'DownloadCoverStage': {
+                    'timeout': int(params.get('coverTimeout', 10) or 10),
+                    'quality': int(params.get('coverQuality', 90) or 90),
+                },
+            }
+
             config = AppConfig(
                 input_path=Path(input_path),
                 output_path=Path(output_path),
                 threads=threads,
                 pipeline_order=self._build_pipeline_order({**self.config_overrides, **params}),
+                stage_config=stage_config,
             )
             config.execution_config = {
                 'threads': threads,
@@ -191,6 +203,11 @@ class Bridge(QObject):
                 'enableDuplicateCheck': params.get('enableDuplicateCheck', True),
                 'enableFilenameParse': params.get('enableFilenameParse', True),
                 'enableMetadataScrape': params.get('enableMetadataScrape', True),
+                'preserveOriginal': params.get('preserveOriginal', True),
+                'autoOrganize': params.get('autoOrganize', True),
+                'confidenceThreshold': stage_config['ScrapeMetadataStage']['confidence_threshold'],
+                'coverTimeout': stage_config['DownloadCoverStage']['timeout'],
+                'coverQuality': stage_config['DownloadCoverStage']['quality'],
                 'input_path': input_path,
                 'output_path': output_path,
             }
@@ -238,7 +255,7 @@ class Bridge(QObject):
                 'level': 'error'
             })
 
-    @pyqtSlot(dict)
+    @pyqtSlot('QVariantMap')
     def update_config(self, config: dict):
         """更新配置"""
         self.config_overrides.update(config or {})

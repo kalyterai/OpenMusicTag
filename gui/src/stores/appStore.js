@@ -9,6 +9,11 @@ const defaultWorkflowConfig = {
   enableDuplicateCheck: true,
   enableFilenameParse: true,
   enableMetadataScrape: true,
+  preserveOriginal: true,
+  autoOrganize: true,
+  confidenceThreshold: 80,
+  coverTimeout: 10,
+  coverQuality: 90,
 };
 
 const defaultSettings = {
@@ -20,6 +25,9 @@ const defaultSettings = {
   autoOrganize: true,
   preserveOriginal: true,
   threads: 4,
+  confidenceThreshold: 80,
+  coverTimeout: 10,
+  coverQuality: 90,
 };
 
 const appendLog = (logs, log) => [
@@ -119,6 +127,11 @@ const useAppStore = create((set) => ({
       enableDuplicateCheck: config.enableDuplicateCheck ?? state.workflowConfig.enableDuplicateCheck,
       enableFilenameParse: config.enableFilenameParse ?? state.workflowConfig.enableFilenameParse,
       enableMetadataScrape: config.enableMetadataScrape ?? state.workflowConfig.enableMetadataScrape,
+      preserveOriginal: config.preserveOriginal ?? state.workflowConfig.preserveOriginal,
+      autoOrganize: config.autoOrganize ?? state.workflowConfig.autoOrganize,
+      confidenceThreshold: config.confidenceThreshold ?? state.workflowConfig.confidenceThreshold,
+      coverTimeout: config.coverTimeout ?? state.workflowConfig.coverTimeout,
+      coverQuality: config.coverQuality ?? state.workflowConfig.coverQuality,
     },
   })),
   addHistory: (entry) => set((state) => ({

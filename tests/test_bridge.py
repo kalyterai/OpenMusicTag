@@ -296,6 +296,17 @@ class WebChannelTypeSafetyTests(unittest.TestCase):
             self.assertEqual(seen.get(name), want,
                              f"槽 {name} 返回类型应为 {want}（不能是 PyQt_PyObject）")
 
+    def test_webchannel_object_slots_accept_qvariantmap(self):
+        expected = {"start_scan", "start_process", "update_config"}
+        seen = {}
+        for m in self._iter_methods():
+            name = bytes(m.name()).decode()
+            if name in expected:
+                seen[name] = [bytes(p).decode() for p in m.parameterTypes()]
+        for name in expected:
+            self.assertEqual(seen.get(name), ["QVariantMap"],
+                             f"槽 {name} 参数应为 QVariantMap，不能暴露为 PyQt_PyObject")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -114,18 +114,24 @@ textarea:focus-visible {
 }
 
 .main-scroll {
-  flex: 1;
+  flex: 1 1 0;
+  width: 0;
   min-width: 0;
   min-height: 0;
   overflow: auto;
 }
 
 .page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 100%;
   padding: 28px;
+  overflow-x: hidden;
 }
 
 .page-narrow {
+  width: min(100%, 1120px);
   max-width: 1120px;
   margin: 0 auto;
 }
@@ -185,6 +191,7 @@ textarea:focus-visible {
 }
 
 .panel {
+  min-width: 0;
   background: rgba(255, 253, 247, 0.86);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -217,6 +224,8 @@ textarea:focus-visible {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
+  min-width: 0;
+  width: 100%;
 }
 
 .dashboard-grid {
@@ -225,6 +234,8 @@ textarea:focus-visible {
   gap: 16px;
   margin-top: 16px;
   align-items: start;
+  min-width: 0;
+  width: 100%;
 }
 
 .dashboard-panel {
@@ -519,6 +530,12 @@ textarea:focus-visible {
   gap: 12px;
 }
 
+.library-detail-side {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
 .library-info-field {
   min-width: 0;
   display: grid;
@@ -560,6 +577,44 @@ textarea:focus-visible {
   gap: 10px;
 }
 
+.library-audio-player {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding-top: 4px;
+}
+
+.library-play-button {
+  min-width: 88px;
+}
+
+.library-player-progress {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.library-player-progress input[type="range"] {
+  width: 100%;
+  accent-color: var(--groove);
+}
+
+.library-player-time {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.library-player-error {
+  grid-column: 1 / -1;
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .library-inspector-empty {
   display: grid;
   place-items: center;
@@ -574,6 +629,8 @@ textarea:focus-visible {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
   min-height: 358px;
+  min-width: 0;
+  width: 100%;
 }
 
 .workflow-panel {
@@ -671,16 +728,89 @@ textarea:focus-visible {
   gap: 10px;
 }
 
+.workflow-config-stack {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  padding: 22px;
+}
+
+.workflow-config-section {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 0 0 18px;
+}
+
+.workflow-config-section + .workflow-config-section {
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.workflow-switch-stack {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.workflow-setting-row,
+.workflow-review-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.72fr);
+  gap: 16px;
+  align-items: center;
+  min-width: 0;
+}
+
+.workflow-setting-label {
+  display: block;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.workflow-setting-copy {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.workflow-number-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 118px;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+}
+
+.workflow-number-input {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.workflow-number-input span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
 .review-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 0.7fr);
   gap: 14px;
+  min-width: 0;
+  width: 100%;
 }
 
 .progress-grid {
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
   gap: 16px;
+  min-width: 0;
+  width: 100%;
 }
 
 .settings-grid {
@@ -688,6 +818,8 @@ textarea:focus-visible {
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 16px;
   align-items: start;
+  min-width: 0;
+  width: 100%;
 }
 
 .metric-card {
@@ -1022,6 +1154,13 @@ textarea:focus-visible {
 
   .workflow-actions-group {
     justify-content: flex-start;
+  }
+
+  .workflow-setting-row,
+  .workflow-review-line,
+  .workflow-number-control,
+  .library-audio-player {
+    grid-template-columns: 1fr;
   }
 
   .library-inspector-body {

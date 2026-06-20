@@ -46,6 +46,16 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
     </Icon>
   ),
+  Play: () => (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5v14l11-7L8 5z" />
+    </Icon>
+  ),
+  Pause: () => (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5v14M16 5v14" />
+    </Icon>
+  ),
   Disc: () => (
     <Icon size="w-12 h-12">
       <circle cx="12" cy="12" r="8" strokeWidth={1.8} />
@@ -137,7 +147,101 @@ function ArtworkFrame({ file }) {
   );
 }
 
-function FileDetailPanel({ file, onClose }) {
+function toLocalAudioSrc(path) {
+  if (!path) return '';
+  if (/^(blob|data|https?|file):/i.test(path)) return path;
+  const normalized = String(path).replace(/\\/g, '/');
+  return encodeURI(normalized.startsWith('/') ? `file://${normalized}` : `file:///${normalized}`);
+}
+
+function formatAudioTime(value) {
+  if (!Number.isFinite(value) || value < 0) return '0:00';
+  const minutes = Math.floor(value / 60);
+  const seconds = Math.floor(value % 60);
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function AudioPlayer({ file }) {
+  const audioRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [error, setError] = useState('');
+  const source = toLocalAudioSrc(file?.path);
+  const progress = duration > 0 ? (currentTime / duration) * 1000 : 0;
+
+  useEffect(() => {
+    setPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setError('');
+  }, [source]);
+
+  const togglePlayback = async () => {
+    const audio = audioRef.current;
+    if (!audio || !source) return;
+    try {
+      if (audio.paused) {
+        await audio.play();
+        setPlaying(true);
+      } else {
+        audio.pause();
+        setPlaying(false);
+      }
+      setError('');
+    } catch (playError) {
+      setPlaying(false);
+      setError('当前文件无法播放');
+    }
+  };
+
+  const handleSeek = (value) => {
+    const audio = audioRef.current;
+    if (!audio || duration <= 0) return;
+    const nextTime = (Number(value) / 1000) * duration;
+    audio.currentTime = nextTime;
+    setCurrentTime(nextTime);
+  };
+
+  return (
+    <div className="library-audio-player">
+      <audio
+        ref={audioRef}
+        src={source}
+        preload="metadata"
+        onLoadedMetadata={(event) => setDuration(event.currentTarget.duration || 0)}
+        onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime || 0)}
+        onPause={() => setPlaying(false)}
+        onPlay={() => setPlaying(true)}
+        onEnded={() => setPlaying(false)}
+        onError={() => setError('当前文件无法播放')}
+      />
+      <button type="button" className="btn btn-primary library-play-button" onClick={togglePlayback} disabled={!source}>
+        {playing ? <Icons.Pause /> : <Icons.Play />}
+        {playing ? '暂停' : '播放'}
+      </button>
+      <div className="library-player-progress">
+        <input
+          type="range"
+          min="0"
+          max="1000"
+          step="1"
+          value={progress}
+          onChange={(event) => handleSeek(event.target.value)}
+          disabled={!source || duration <= 0}
+          aria-label="播放进度"
+        />
+        <div className="library-player-time">
+          <span>{formatAudioTime(currentTime)}</span>
+          <span>{formatAudioTime(duration)}</span>
+        </div>
+      </div>
+      {error && <span className="library-player-error">{error}</span>}
+    </div>
+  );
+}
+
+function FileDetailPanel({ file }) {
   if (!file) return null;
 
   const tags = file.tags && typeof file.tags === 'object' ? file.tags : {};
@@ -148,15 +252,18 @@ function FileDetailPanel({ file, onClose }) {
       <div className="library-inspector-body">
         <div className="library-detail-overview">
           <ArtworkFrame file={file} />
-          <div className="detail-grid">
-            <DetailField label="标题" value={file.title || tags.title} />
-            <DetailField label="艺人" value={file.artist || tags.artist} />
-            <DetailField label="专辑" value={file.album || tags.album} />
-            <DetailField label="年份" value={file.year || tags.year} />
-            <DetailField label="流派" value={file.genre || tags.genre} />
-            <DetailField label="音轨" value={file.track || tags.track} />
-            <DetailField label="时长" value={file.duration} />
-            <DetailField label="大小" value={file.bytes ? formatFileSize(file.bytes) : ''} />
+          <div className="library-detail-side">
+            <div className="detail-grid">
+              <DetailField label="标题" value={file.title || tags.title} />
+              <DetailField label="艺人" value={file.artist || tags.artist} />
+              <DetailField label="专辑" value={file.album || tags.album} />
+              <DetailField label="年份" value={file.year || tags.year} />
+              <DetailField label="流派" value={file.genre || tags.genre} />
+              <DetailField label="音轨" value={file.track || tags.track} />
+              <DetailField label="时长" value={file.duration} />
+              <DetailField label="大小" value={file.bytes ? formatFileSize(file.bytes) : ''} />
+            </div>
+            <AudioPlayer file={file} />
           </div>
         </div>
 
@@ -396,7 +503,6 @@ export default function Home() {
           {store.fileDetailVisible ? (
             <FileDetailPanel
               file={store.selectedFile}
-              onClose={() => store.closeFileDetail()}
             />
           ) : (
             <EmptyInspector />
