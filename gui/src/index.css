@@ -227,6 +227,68 @@ textarea:focus-visible {
   align-items: start;
 }
 
+.dashboard-panel {
+  min-height: 302px;
+  overflow: hidden;
+}
+
+.dashboard-panel-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 236px;
+  padding: 18px;
+}
+
+.dashboard-activity-chart {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  align-items: end;
+  height: 188px;
+}
+
+.dashboard-activity-bar {
+  width: 100%;
+  max-width: 44px;
+  border: 1px solid rgba(22, 20, 19, 0.08);
+  border-radius: 6px;
+}
+
+.dashboard-task-body {
+  gap: 10px;
+}
+
+.dashboard-task-skeleton {
+  display: grid;
+  gap: 10px;
+  min-height: 74px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 253, 247, 0.62);
+}
+
+.dashboard-task-skeleton span {
+  display: block;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(222, 212, 195, 0.52), rgba(255, 253, 247, 0.86), rgba(222, 212, 195, 0.52));
+}
+
+.dashboard-task-skeleton span:nth-child(1) {
+  width: 68%;
+}
+
+.dashboard-task-skeleton span:nth-child(2) {
+  width: 42%;
+}
+
+.dashboard-task-skeleton span:nth-child(3) {
+  width: 100%;
+  height: 7px;
+}
+
 .library-start-panel {
   padding: 18px;
   margin-bottom: 16px;
@@ -557,6 +619,7 @@ textarea:focus-visible {
   font-size: 32px;
   font-weight: 850;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .metric-note {

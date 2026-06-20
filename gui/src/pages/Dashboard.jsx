@@ -114,7 +114,7 @@ function ActivityChart({ data }) {
   const maxValue = Math.max(...days.map((day) => data[day] || 0), 1);
 
   return (
-    <section className="panel" style={{ overflow: 'hidden' }}>
+    <section className="panel dashboard-panel">
       <div className="panel-header">
         <div>
           <h2 className="panel-title">刮削活跃度</h2>
@@ -122,8 +122,8 @@ function ActivityChart({ data }) {
         </div>
         <span className="chip chip-blue">本周</span>
       </div>
-      <div style={{ padding: 18 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 10, alignItems: 'end', height: 170 }}>
+      <div className="dashboard-panel-body">
+        <div className="dashboard-activity-chart">
           {days.map((day) => {
             const value = data[day] || 0;
             const height = Math.max((value / maxValue) * 132, 8);
@@ -132,13 +132,10 @@ function ActivityChart({ data }) {
               <div key={day} style={{ minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
                 <div
                   title={`${day}: ${value}`}
+                  className="dashboard-activity-bar"
                   style={{
-                    width: '100%',
-                    maxWidth: 44,
                     height,
-                    borderRadius: 6,
                     background: value > 0 ? 'linear-gradient(180deg, var(--groove), #3d8583)' : 'rgba(222, 212, 195, 0.72)',
-                    border: '1px solid rgba(22, 20, 19, 0.08)',
                   }}
                 />
                 <span style={{ color: 'var(--muted)', fontSize: 12 }}>{labels[day]}</span>
@@ -151,11 +148,11 @@ function ActivityChart({ data }) {
   );
 }
 
-function RecentTasksCard({ tasks, onViewAll }) {
+function RecentTasksCard({ tasks, onViewAll, isLoading }) {
   const hasTasks = tasks.length > 0;
 
   return (
-    <section className="panel">
+    <section className="panel dashboard-panel">
       <div className="panel-header">
         <div>
           <h2 className="panel-title">近期任务</h2>
@@ -165,8 +162,20 @@ function RecentTasksCard({ tasks, onViewAll }) {
           查看资源库
         </button>
       </div>
-      <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {!hasTasks && (
+      <div className="dashboard-panel-body dashboard-task-body">
+        {isLoading && (
+          <>
+            {[0, 1, 2].map((item) => (
+              <div key={item} className="dashboard-task-skeleton">
+                <span />
+                <span />
+                <span />
+              </div>
+            ))}
+          </>
+        )}
+
+        {!isLoading && !hasTasks && (
           <div className="empty-state" style={{ minHeight: 220 }}>
             <Icons.Folder />
             <div style={{ marginTop: 10, fontWeight: 800, color: 'var(--ink)' }}>还没有处理记录</div>
@@ -174,7 +183,7 @@ function RecentTasksCard({ tasks, onViewAll }) {
           </div>
         )}
 
-        {tasks.map((task, index) => {
+        {!isLoading && tasks.map((task, index) => {
           const isRunning = task.status === 'running' || task.status === 'processing';
           const statusClass = task.failed > 0 ? 'chip-red' : (isRunning ? 'chip-blue' : 'chip-green');
           const statusText = task.failed > 0 ? `${task.failed} 失败` : (isRunning ? '处理中' : '完成');
@@ -215,6 +224,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [weeklyData, setWeeklyData] = useState({});
   const [recentTasks, setRecentTasks] = useState([]);
+  const [dashboardReady, setDashboardReady] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -233,6 +243,8 @@ export default function Dashboard() {
         setRecentTasks((tasks || []).map(mapTask));
       } catch (e) {
         console.error('加载概览数据失败:', e);
+      } finally {
+        if (active) setDashboardReady(true);
       }
     })();
     return () => { active = false; };
@@ -273,7 +285,7 @@ export default function Dashboard() {
 
       <section className="dashboard-grid">
         <ActivityChart data={weeklyData} />
-        <RecentTasksCard tasks={recentTasks} onViewAll={() => setCurrentPage('files')} />
+        <RecentTasksCard tasks={recentTasks} isLoading={!dashboardReady} onViewAll={() => setCurrentPage('files')} />
       </section>
     </div>
   );
