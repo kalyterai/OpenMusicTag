@@ -426,6 +426,85 @@ class Bridge(QObject):
             print(f"[ERROR] 读取任务歌曲失败: {e}")
             return []
 
+    @pyqtSlot(int, str, int, result=list)
+    def get_task_events(self, task_id: int, status: str = "", limit: int = 2000) -> list:
+        """获取某任务的环节事件（status 为空则全部，可传 'failed' 只看失败）。"""
+        try:
+            return self.storage.get_task_events(task_id, status or None, limit or 2000)
+        except Exception as e:
+            print(f"[ERROR] 读取环节事件失败: {e}")
+            return []
+
+    @pyqtSlot(int, result=list)
+    def get_stage_failure_stats(self, task_id: int = 0) -> list:
+        """按环节汇总各状态计数（task_id 传 0 则统计所有任务）。"""
+        try:
+            return self.storage.get_stage_failure_stats(task_id or None)
+        except Exception as e:
+            print(f"[ERROR] 读取环节统计失败: {e}")
+            return []
+
+    @pyqtSlot(int, int, result=list)
+    def get_task_log(self, task_id: int, limit: int = 1000) -> list:
+        """读取任务 JSONL 详细日志，返回最近 limit 条（每条已解析为对象）。"""
+        try:
+            task = self.storage.get_task(task_id) or {}
+            log_path = task.get("log_path")
+            if not log_path or not Path(log_path).exists():
+                return []
+            with open(log_path, encoding="utf-8") as fh:
+                lines = fh.readlines()
+            records = []
+            for line in lines[-(limit or 1000):]:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    records.append(json.loads(line))
+                except (ValueError, TypeError):
+                    continue
+            return records
+        except Exception as e:
+            print(f"[ERROR] 读取任务日志失败: {e}")
+            return []
+
+    @pyqtSlot(int, result=bool)
+    def open_task_log(self, task_id: int) -> bool:
+        """用系统默认程序打开任务 JSONL 日志文件。"""
+        try:
+            from PyQt6.QtGui import QDesktopServices
+            from PyQt6.QtCore import QUrl
+            task = self.storage.get_task(task_id) or {}
+            log_path = task.get("log_path")
+            if not log_path or not Path(log_path).exists():
+                return False
+            return QDesktopServices.openUrl(QUrl.fromLocalFile(str(log_path)))
+        except Exception as e:
+            print(f"[ERROR] 打开任务日志失败: {e}")
+            return False
+
+    @pyqtSlot(int, result=str)
+    def export_task_log(self, task_id: int) -> str:
+        """把任务日志另存到用户选择的位置，返回保存路径（取消返回空串）。"""
+        try:
+            import shutil
+            from PyQt6.QtWidgets import QFileDialog
+            task = self.storage.get_task(task_id) or {}
+            log_path = task.get("log_path")
+            if not log_path or not Path(log_path).exists():
+                return ""
+            default_name = str(Path.home() / f"task_{task_id}_log.jsonl")
+            target, _ = QFileDialog.getSaveFileName(
+                self.window, "导出任务日志", default_name, "JSONL 日志 (*.jsonl);;所有文件 (*)"
+            )
+            if not target:
+                return ""
+            shutil.copy(log_path, target)
+            return target
+        except Exception as e:
+            print(f"[ERROR] 导出任务日志失败: {e}")
+            return ""
+
     @pyqtSlot(int, result=int)
     def count_task_songs(self, task_id: int) -> int:
         try:
