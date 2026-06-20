@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import useAppStore from '../stores/appStore';
 import { useQtBridge } from '../bridge';
 import { formatFileSize } from '../utils/format';
+import logo from '../assets/logo.png';
 
 const Icon = ({ children, size = 'w-5 h-5' }) => (
   <svg className={size} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -169,6 +170,8 @@ function AudioPlayer({ file }) {
   const [error, setError] = useState('');
   const source = toLocalAudioSrc(file?.path);
   const progress = duration > 0 ? (currentTime / duration) * 1000 : 0;
+  const cover = file?.coverDataUrl || file?.cover_data_url || file?.artwork || file?.picture || logo;
+  const mediaTitle = file?.name || file?.title || 'OpenMusicTag';
 
   useEffect(() => {
     setPlaying(false);
@@ -176,6 +179,18 @@ function AudioPlayer({ file }) {
     setDuration(0);
     setError('');
   }, [source]);
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || typeof window.MediaMetadata !== 'function') return;
+    navigator.mediaSession.metadata = new window.MediaMetadata({
+      title: mediaTitle,
+      artist: file?.artist || file?.tags?.artist || '',
+      album: file?.album || file?.tags?.album || '',
+      artwork: [
+        { src: cover, sizes: '512x512', type: cover.startsWith('data:image/jpeg') ? 'image/jpeg' : 'image/png' },
+      ],
+    });
+  }, [cover, file?.album, file?.artist, file?.tags?.album, file?.tags?.artist, mediaTitle]);
 
   const togglePlayback = async () => {
     const audio = audioRef.current;
@@ -216,9 +231,15 @@ function AudioPlayer({ file }) {
         onEnded={() => setPlaying(false)}
         onError={() => setError('当前文件无法播放')}
       />
-      <button type="button" className="btn btn-primary library-play-button" onClick={togglePlayback} disabled={!source}>
+      <button
+        type="button"
+        className="btn btn-primary library-play-button"
+        onClick={togglePlayback}
+        disabled={!source}
+        aria-label={playing ? '暂停' : '播放'}
+        title={playing ? '暂停' : '播放'}
+      >
         {playing ? <Icons.Pause /> : <Icons.Play />}
-        {playing ? '暂停' : '播放'}
       </button>
       <div className="library-player-progress">
         <input
@@ -263,7 +284,6 @@ function FileDetailPanel({ file }) {
               <DetailField label="时长" value={file.duration} />
               <DetailField label="大小" value={file.bytes ? formatFileSize(file.bytes) : ''} />
             </div>
-            <AudioPlayer file={file} />
           </div>
         </div>
 
@@ -278,6 +298,7 @@ function FileDetailPanel({ file }) {
           </div>
         )}
       </div>
+      <AudioPlayer file={file} />
     </section>
   );
 }
@@ -364,6 +385,12 @@ export default function Home() {
       store.selectFile(file);
     }
   };
+
+  useEffect(() => {
+    const fileName = store.fileDetailVisible && store.selectedFile?.name ? store.selectedFile.name : '';
+    document.title = fileName ? `OpenMusicTag - ${fileName}` : 'OpenMusicTag - 音乐整理工具';
+    callQt('set_window_title', fileName).catch(() => {});
+  }, [callQt, store.fileDetailVisible, store.selectedFile?.name]);
 
   useEffect(() => {
     if (useAppStore.getState().currentPath) return undefined;

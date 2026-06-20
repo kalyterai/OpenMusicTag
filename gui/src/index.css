@@ -140,8 +140,18 @@ textarea:focus-visible {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 20px;
+  min-width: 0;
   margin-bottom: 22px;
+}
+
+.page-header > * {
+  min-width: 0;
+}
+
+.page-header > :first-child {
+  flex: 1 1 320px;
 }
 
 .page-kicker {
@@ -174,12 +184,15 @@ textarea:focus-visible {
   justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
-  min-width: min(520px, 46vw);
+  flex: 1 1 340px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .library-current-path {
   min-width: 0;
-  max-width: min(520px, 42vw);
+  max-width: min(420px, 100%);
+  flex: 1 1 260px;
   padding: 8px 10px;
   overflow: hidden;
   color: var(--ink-soft);
@@ -398,9 +411,11 @@ textarea:focus-visible {
 
 .library-workbench {
   display: grid;
-  grid-template-columns: minmax(300px, 0.58fr) minmax(620px, 1.42fr);
+  grid-template-columns: minmax(260px, 0.52fr) minmax(0, 1.48fr);
   gap: 0;
   align-items: stretch;
+  width: 100%;
+  max-width: 100%;
   height: calc(100vh - 190px);
   min-height: 560px;
   overflow: hidden;
@@ -482,6 +497,8 @@ textarea:focus-visible {
 }
 
 .library-inspector-body {
+  flex: 1;
+  min-height: 0;
   padding: 24px;
   display: grid;
   gap: 20px;
@@ -490,7 +507,7 @@ textarea:focus-visible {
 
 .library-detail-overview {
   display: grid;
-  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
+  grid-template-columns: minmax(160px, 240px) minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
@@ -579,14 +596,21 @@ textarea:focus-visible {
 
 .library-audio-player {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: 44px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
-  padding-top: 4px;
+  width: 100%;
+  min-width: 0;
+  padding: 14px 18px;
+  border-top: 1px solid var(--line);
+  background: rgba(255, 253, 247, 0.96);
 }
 
 .library-play-button {
-  min-width: 88px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
 }
 
 .library-player-progress {
@@ -1064,7 +1088,7 @@ textarea:focus-visible {
   }
 
   .library-workbench {
-    grid-template-columns: minmax(280px, 0.68fr) minmax(440px, 1.32fr);
+    grid-template-columns: minmax(240px, 0.6fr) minmax(0, 1.4fr);
   }
 }
 

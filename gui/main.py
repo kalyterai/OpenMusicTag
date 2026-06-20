@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtGui import QIcon
 
-from bridge import Bridge, MainWindow
+from bridge import MainWindow, apply_macos_application_icon
 
 
 def main():
@@ -48,7 +48,9 @@ def main():
     # 设置应用图标（Dock栏）
     icon_path = Path(__file__).parent / "logo.png"
     if icon_path.exists():
-        app.setWindowIcon(QIcon(str(icon_path)))
+        app_icon = QIcon(str(icon_path))
+        app.setWindowIcon(app_icon)
+        apply_macos_application_icon(icon_path)
 
     # 创建并显示窗口
     window = MainWindow()

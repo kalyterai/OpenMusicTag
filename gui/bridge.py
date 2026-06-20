@@ -19,6 +19,21 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.pipeline import MusicOrganizerPipeline
 from core.config import AppConfig
 
+APP_BASE_TITLE = "OpenMusicTag - 音乐整理工具"
+
+
+def apply_macos_application_icon(icon_path: Path) -> None:
+    """Best-effort macOS app icon override for script-launched Qt apps."""
+    if sys.platform != 'darwin' or not icon_path.exists():
+        return
+    try:
+        from AppKit import NSApplication, NSImage
+        image = NSImage.alloc().initWithContentsOfFile_(str(icon_path))
+        if image:
+            NSApplication.sharedApplication().setApplicationIconImage_(image)
+    except Exception:
+        pass
+
 
 class ProcessingWorker(QThread):
     """处理工作线程"""
@@ -315,6 +330,21 @@ class Bridge(QObject):
             return True
         except Exception as e:
             print(f"[ERROR] 保存上次资源库目录失败: {e}")
+            return False
+
+    @pyqtSlot(str, result=bool)
+    def set_window_title(self, file_name: str) -> bool:
+        """同步当前选中文件到原生窗口标题。"""
+        title = APP_BASE_TITLE
+        clean_name = Path(file_name).name if file_name else ""
+        if clean_name:
+            title = f"OpenMusicTag - {clean_name}"
+        try:
+            if self.window:
+                self.window.setWindowTitle(title)
+            return True
+        except Exception as e:
+            print(f"[WARN] 设置窗口标题失败: {e}")
             return False
 
     @pyqtSlot(result='QVariantMap')
@@ -813,7 +843,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("OpenMusicTag - 音乐整理工具")
+        self.setWindowTitle(APP_BASE_TITLE)
         self.setMinimumSize(1100, 700)
         self.resize(1200, 800)
 
@@ -859,7 +889,12 @@ class MainWindow(QMainWindow):
         """设置窗口图标"""
         icon_path = Path(__file__).parent / "logo.png"
         if icon_path.exists():
-            self.setWindowIcon(QIcon(str(icon_path)))
+            icon = QIcon(str(icon_path))
+            self.setWindowIcon(icon)
+            app = QApplication.instance()
+            if app:
+                app.setWindowIcon(icon)
+            apply_macos_application_icon(icon_path)
 
     def closeEvent(self, event):
         """关闭窗口时的事件"""

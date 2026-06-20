@@ -39,6 +39,11 @@ function getMockResult(method, args) {
     window.localStorage?.setItem('openmusictag:last-library-path', args[0] || '');
     return true;
   }
+  if (method === 'set_window_title') {
+    const fileName = args[0] || '';
+    document.title = fileName ? `OpenMusicTag - ${fileName}` : 'OpenMusicTag - 音乐整理工具';
+    return true;
+  }
   if (method === 'scan_directory') {
     return { subfolders: [], files: [] };
   }

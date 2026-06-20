@@ -283,6 +283,7 @@ class WebChannelTypeSafetyTests(unittest.TestCase):
             "get_home_path": "QString",
             "get_last_library_path": "QString",
             "set_last_library_path": "bool",
+            "set_window_title": "bool",
             "request_initial_permissions": "bool",
             "list_artist_aliases": "QVariantList",
             "list_cleanup_rules": "QVariantList",
