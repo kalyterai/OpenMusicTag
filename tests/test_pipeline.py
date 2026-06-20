@@ -3,6 +3,7 @@
 
 import contextlib
 import io
+import json
 import math
 import struct
 import tempfile
@@ -224,13 +225,16 @@ class PipelineIntegrationTests(unittest.TestCase):
 
             pipeline = MusicOrganizerPipeline(config)
             with contextlib.redirect_stdout(io.StringIO()):
-                result_path, skipped, metadata = pipeline.process_file(source_path)
+                result_path, skipped, metadata, trace = pipeline.process_file(source_path)
 
             expected_path = output_path / "input" / "测试歌手 - 测试歌曲.wav"
             self.assertFalse(skipped)
             self.assertEqual(result_path, expected_path)
             self.assertIsInstance(metadata, dict)
             self.assertTrue(expected_path.exists())
+            # trace 应逐环节记录，且成功时无 failed
+            self.assertTrue(len(trace) > 0)
+            self.assertTrue(all(e["status"] != "failed" for e in trace))
 
             written = WAVE(expected_path)
             self.assertEqual(str(written.tags.get("TPE1")), "测试歌手")
@@ -275,6 +279,21 @@ class PipelinePersistenceTests(unittest.TestCase):
             self.assertEqual(songs[0]["status"], "success")
             # tags 应被解析为 dict（即便为空也不是字符串）
             self.assertIsInstance(songs[0]["tags"], dict)
+
+            # 环节事件应被记录，且成功任务无失败环节
+            events = storage.get_task_events(tasks[0]["id"])
+            self.assertTrue(len(events) > 0)
+            stats = storage.get_stage_failure_stats(tasks[0]["id"])
+            self.assertTrue(any(r["stage"] for r in stats))
+            self.assertTrue(all(r["failed"] == 0 for r in stats))
+
+            # 任务应写入 JSONL 日志文件且内容可解析
+            log_path = tasks[0]["log_path"]
+            self.assertTrue(log_path and Path(log_path).exists())
+            with open(log_path, encoding="utf-8") as fh:
+                first = json.loads(fh.readline())
+            self.assertEqual(first["status"], "success")
+            self.assertIn("stages", first)
             storage.close()
 
 

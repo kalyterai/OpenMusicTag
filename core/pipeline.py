@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """音乐整理管道 - 使用配置化动态加载，支持 GUI 回调"""
 
+import json
 import os
 import threading
 import time
@@ -62,6 +63,9 @@ class MusicOrganizerPipeline:
         self.cancel_event = cancel_event
         # 可选的持久化层（None 则不记录，便于 CLI/测试）
         self.storage = storage
+        # 每任务一个 JSONL 详细日志文件（在 process 中打开）
+        self._log_file = None
+        self._log_lock = threading.Lock()
         
         # GUI 回调函数
         self.on_progress = on_progress or (lambda *args: None)
@@ -103,39 +107,67 @@ class MusicOrganizerPipeline:
             secs = int(seconds % 60)
             return f"{hours}小时{minutes}分{secs}秒"
 
-    def process_file(self, file_path: Path) -> Tuple[Optional[Path], bool, dict]:
+    def process_file(self, file_path: Path) -> Tuple[Optional[Path], bool, dict, list]:
         """处理单个文件（每次调用创建新的 context，确保线程安全）
 
-        返回 ``(output_path, skipped, metadata)``：metadata 为最终标签元数据，
-        供持久化为 songs.tags（JSON）与详情页展示。
+        返回 ``(output_path, skipped, metadata, trace)``：metadata 为最终标签元数据，
+        供持久化为 songs.tags（JSON）与详情页展示；trace 为每个环节的执行记录
+        ``{stage, status, message, duration_ms, [traceback]}``，用于排查与统计。
         """
         context = PipelineContext(self.config, self.cancel_event)
         audio_file = AudioFile(path=file_path, ext=file_path.suffix.lower())
+        trace: list = []
 
         # 依次执行所有阶段
         for stage in self.pipeline:
             if not context.should_continue():
                 break
+            stage_name = getattr(stage, "NAME", stage.__class__.__name__)
+            t0 = time.time()
             try:
                 audio_file = stage.process(audio_file, context)
-            except Exception:
+            except Exception as exc:
+                duration_ms = int((time.time() - t0) * 1000)
+                trace.append({
+                    "stage": stage_name,
+                    "status": "failed",
+                    "message": f"{type(exc).__name__}: {exc}",
+                    "duration_ms": duration_ms,
+                    "traceback": traceback.format_exc(),
+                })
                 print(f"\n  ✗ {stage.NAME} 阶段出错: {file_path.name}")
                 traceback.print_exc()
                 context.stop()
-                return None, False, {}
+                return None, False, {}, trace
 
-            # 检查是否需要跳过（通过 context.breakout 控制）
+            duration_ms = int((time.time() - t0) * 1000)
+
+            # 该阶段正常完成且 pipeline 继续
             if context.should_continue():
+                trace.append({
+                    "stage": stage_name, "status": "ok",
+                    "message": "", "duration_ms": duration_ms,
+                })
                 continue
 
-            # 跳过后续阶段
+            # pipeline 在此中断：区分「外部取消」与「阶段主动跳过后续」
+            if context.is_cancelled():
+                trace.append({
+                    "stage": stage_name, "status": "ok",
+                    "message": "外部取消", "duration_ms": duration_ms,
+                })
+            else:
+                trace.append({
+                    "stage": stage_name, "status": "skipped",
+                    "message": "命中规则，跳过后续环节", "duration_ms": duration_ms,
+                })
             break
 
-        # 如果被跳过，返回 (None, True, {})
+        # 如果被跳过，返回 (None, True, {}, trace)
         if not context.should_continue():
-            return None, True, {}
+            return None, True, {}, trace
 
-        return audio_file.output_path, False, dict(audio_file.final_metadata or {})
+        return audio_file.output_path, False, dict(audio_file.final_metadata or {}), trace
 
     @staticmethod
     def _file_size(path: Path) -> int:
@@ -144,14 +176,27 @@ class MusicOrganizerPipeline:
         except OSError:
             return 0
 
+    @staticmethod
+    def _failure_from_trace(trace) -> Tuple[str, str]:
+        """从环节 trace 中提取失败环节名与错误摘要（无失败则返回空）。"""
+        for event in trace or []:
+            if event.get("status") == "failed":
+                return event.get("stage", ""), event.get("message", "")
+        return "", ""
+
     def _record_song(self, task_id, status, source_path, output_path=None,
-                     info=None, tags=None, size=0) -> None:
-        """把单曲结果写入持久化层（无 storage / 无 task 时静默跳过）。"""
+                     info=None, tags=None, size=0, trace=None):
+        """把单曲结果与环节事件写入持久化层，并追加 JSONL 详细日志。
+
+        无 storage / 无 task 时静默跳过。返回写入的 song_id（失败则 None）。
+        """
         if not self.storage or not task_id:
-            return
+            return None
         info = info or {}
+        failed_stage, error_message = self._failure_from_trace(trace)
+        song_id = None
         try:
-            self.storage.add_song(
+            song_id = self.storage.add_song(
                 task_id, status,
                 source_path=str(source_path),
                 output_path=str(output_path) if output_path else "",
@@ -160,9 +205,59 @@ class MusicOrganizerPipeline:
                 title=info.get("title", ""),
                 tags=tags or None,
                 size_bytes=size,
+                failed_stage=failed_stage,
+                error_message=error_message,
             )
         except Exception:
             pass
+        if trace:
+            try:
+                self.storage.add_song_events(
+                    task_id, trace, song_id=song_id, source_path=str(source_path)
+                )
+            except Exception:
+                pass
+        self._write_log_line(status, source_path, failed_stage, song_id, trace)
+        return song_id
+
+    def _write_log_line(self, status, source_path, failed_stage, song_id, trace) -> None:
+        """把单曲完整结果（含 stage 明细与堆栈）追加到任务 JSONL 日志文件。"""
+        if not self._log_file:
+            return
+        record = {
+            "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "song_id": song_id,
+            "source": str(source_path),
+            "status": status,
+            "failed_stage": failed_stage or None,
+            "stages": trace or [],
+        }
+        try:
+            with self._log_lock:
+                self._log_file.write(json.dumps(record, ensure_ascii=False) + "\n")
+                self._log_file.flush()
+        except Exception:
+            pass
+
+    def _open_task_log(self, task_id) -> None:
+        """为本次任务打开 JSONL 日志文件，并把路径写回 tasks.log_path。"""
+        try:
+            from core.storage import default_data_dir
+            log_dir = default_data_dir() / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            log_path = log_dir / f"task_{task_id}.jsonl"
+            self._log_file = open(log_path, "a", encoding="utf-8")
+            self.storage.set_task_log_path(task_id, str(log_path))
+        except Exception:
+            self._log_file = None
+
+    def _close_task_log(self) -> None:
+        if self._log_file:
+            try:
+                self._log_file.close()
+            except Exception:
+                pass
+            self._log_file = None
 
     def process(self) -> None:
         """批量处理音乐文件"""
@@ -201,6 +296,10 @@ class MusicOrganizerPipeline:
             except Exception:
                 task_id = None
 
+        # 打开每任务的 JSONL 详细日志文件，并把路径写回任务记录
+        if self.storage and task_id:
+            self._open_task_log(task_id)
+
         start_time = time.time()
         completed = 0
         failed = 0
@@ -218,10 +317,10 @@ class MusicOrganizerPipeline:
 
                 file_path = futures[future]
                 try:
-                    output_path, skipped_file, metadata = future.result()
+                    output_path, skipped_file, metadata, trace = future.result()
                     if skipped_file:
                         skipped += 1
-                        self._record_song(task_id, 'skipped', file_path)
+                        self._record_song(task_id, 'skipped', file_path, trace=trace)
                     elif output_path:
                         completed += 1
                         success_count += 1
@@ -235,11 +334,11 @@ class MusicOrganizerPipeline:
                         total_bytes += size
                         self._record_song(task_id, 'success', file_path,
                                           output_path=output_path, info=file_info,
-                                          tags=metadata, size=size)
+                                          tags=metadata, size=size, trace=trace)
                         self.on_success(file_info)
                     else:
                         failed += 1
-                        self._record_song(task_id, 'failed', file_path)
+                        self._record_song(task_id, 'failed', file_path, trace=trace)
                 except CancelledError:
                     skipped += 1
                     self._record_song(task_id, 'skipped', file_path)
@@ -285,6 +384,8 @@ class MusicOrganizerPipeline:
                 )
             except Exception:
                 pass
+
+        self._close_task_log()
 
         self.on_log("=" * 40, "info")
         if cancelled:
