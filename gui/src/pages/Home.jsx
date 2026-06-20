@@ -492,14 +492,7 @@ export default function Home() {
         <section className="library-workbench">
           <div className="library-browser-column">
             <div className="library-section-head">
-              <div>
-                <p className="panel-subtitle">
-                  {visibleItems.length > 0 ? `${visibleItems.length} 项` : '当前目录暂无可展示文件'}
-                </p>
-              </div>
-              <div className="library-section-actions">
-                <span className="chip">{store.subFolders.length} 目录</span>
-                <span className="chip">{store.currentFiles.length} 音频</span>
+              <div className="library-section-lead">
                 {store.currentPath && (
                   <button
                     type="button"
@@ -511,6 +504,15 @@ export default function Home() {
                     <Icons.Parent />
                   </button>
                 )}
+                <div>
+                  <p className="panel-subtitle">
+                    {visibleItems.length > 0 ? `${visibleItems.length} 项` : '当前目录暂无可展示文件'}
+                  </p>
+                </div>
+              </div>
+              <div className="library-section-actions">
+                <span className="chip">{store.subFolders.length} 目录</span>
+                <span className="chip">{store.currentFiles.length} 音频</span>
                 {loadingPath && (
                   <span className="chip chip-blue">
                     <Icons.Loader />

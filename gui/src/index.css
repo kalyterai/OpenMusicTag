@@ -488,6 +488,13 @@ textarea:focus-visible {
   border-bottom: 1px solid var(--line);
 }
 
+.library-section-lead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
 .library-section-actions {
   display: flex;
   align-items: center;
