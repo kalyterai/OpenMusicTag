@@ -149,7 +149,6 @@ function FileDetailPanel({ file, onClose }) {
         <div className="library-detail-overview">
           <ArtworkFrame file={file} />
           <div className="detail-grid">
-            <DetailField label="文件" value={file.name} />
             <DetailField label="标题" value={file.title || tags.title} />
             <DetailField label="艺人" value={file.artist || tags.artist} />
             <DetailField label="专辑" value={file.album || tags.album} />

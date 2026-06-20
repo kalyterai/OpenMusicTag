@@ -387,7 +387,7 @@ textarea:focus-visible {
 
 .library-workbench {
   display: grid;
-  grid-template-columns: minmax(360px, 0.78fr) minmax(560px, 1.22fr);
+  grid-template-columns: minmax(300px, 0.58fr) minmax(620px, 1.42fr);
   gap: 0;
   align-items: stretch;
   height: calc(100vh - 190px);
@@ -515,9 +515,8 @@ textarea:focus-visible {
 .detail-grid {
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 26px;
-  row-gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
 }
 
 .library-info-field {
@@ -933,7 +932,7 @@ textarea:focus-visible {
   }
 
   .library-workbench {
-    grid-template-columns: minmax(320px, 0.82fr) minmax(420px, 1.18fr);
+    grid-template-columns: minmax(280px, 0.68fr) minmax(440px, 1.32fr);
   }
 }
 

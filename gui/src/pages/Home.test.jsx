@@ -57,7 +57,8 @@ describe('Home 资源库详情 - 真实数据', () => {
     expect(browserColumn?.querySelector('.library-unified-list')).toBeInTheDocument();
     expect(container.querySelector('.library-inspector')).toBeInTheDocument();
     expect(container.querySelector('.library-artwork')).toBeInTheDocument();
-    expect(screen.getByText('文件：')).toBeInTheDocument();
+    expect(screen.getByText('标题：')).toBeInTheDocument();
+    expect(screen.queryByText('文件：')).not.toBeInTheDocument();
     expect(screen.queryByText('文件信息')).not.toBeInTheDocument();
   });
 
