@@ -511,8 +511,8 @@ export default function Home() {
                 </div>
               </div>
               <div className="library-section-actions">
-                <span className="chip">{store.subFolders.length} 目录</span>
-                <span className="chip">{store.currentFiles.length} 音频</span>
+                <span className="library-section-count">{store.subFolders.length} 目录</span>
+                <span className="library-section-count">{store.currentFiles.length} 音频</span>
                 {loadingPath && (
                   <span className="chip chip-blue">
                     <Icons.Loader />

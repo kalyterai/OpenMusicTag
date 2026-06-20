@@ -481,11 +481,18 @@ textarea:focus-visible {
 
 .library-section-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--line);
+}
+
+.library-section-count {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
 }
 
 .library-section-lead {
@@ -511,6 +518,8 @@ textarea:focus-visible {
 .library-parent-button {
   width: 34px;
   min-width: 34px;
+  height: 34px;
+  min-height: 34px;
   padding: 0;
 }
 
