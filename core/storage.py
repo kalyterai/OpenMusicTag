@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     started_at   TEXT NOT NULL,                            -- 业务：任务开始时间
     finished_at  TEXT,                                     -- 业务：任务结束时间
     duration_ms  INTEGER,                                  -- 业务：耗时（毫秒）
+    log_path     TEXT,                                     -- 本次任务的详细日志文件（JSONL）路径
     gmt_create   TEXT NOT NULL DEFAULT ({_TS_SQL}),        -- 审计：记录创建时间（自动）
     gmt_modified TEXT NOT NULL DEFAULT ({_TS_SQL})         -- 审计：记录最后更新时间（触发器自动刷新）
 );
@@ -88,6 +89,8 @@ CREATE TABLE IF NOT EXISTS songs (
     title        TEXT,                                     -- 标题（冗余）
     tags         TEXT,                                     -- 完整标签元数据（JSON 字符串）
     bytes        INTEGER DEFAULT 0,                        -- 输出文件大小（字节）
+    failed_stage TEXT,                                     -- 失败发生的环节名（成功/跳过为空）
+    error_message TEXT,                                    -- 失败的错误摘要（成功/跳过为空）
     created_at   TEXT NOT NULL,                            -- 业务：处理完成时间
     gmt_create   TEXT NOT NULL DEFAULT ({_TS_SQL}),        -- 审计：记录创建时间（自动）
     gmt_modified TEXT NOT NULL DEFAULT ({_TS_SQL})         -- 审计：记录最后更新时间（触发器自动刷新）
@@ -98,6 +101,24 @@ CREATE INDEX IF NOT EXISTS idx_songs_artist  ON songs(artist);
 CREATE INDEX IF NOT EXISTS idx_songs_status  ON songs(status);
 CREATE INDEX IF NOT EXISTS idx_songs_created ON songs(created_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_started ON tasks(started_at);
+
+-- 环节事件表：每首歌每个 pipeline 环节的执行结果，用于逐首排查 + 跨任务统计
+CREATE TABLE IF NOT EXISTS song_events (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,        -- 事件自增主键
+    task_id      INTEGER NOT NULL,                         -- 所属任务 id（逻辑关联）
+    song_id      INTEGER,                                  -- 关联 songs.id（逻辑关联，可空）
+    source_path  TEXT,                                     -- 源文件路径（冗余，便于无 join 排查）
+    stage        TEXT NOT NULL,                            -- 环节名（PipelineStage.NAME）
+    status       TEXT NOT NULL,                            -- 环节结果: ok/skipped/failed
+    message      TEXT,                                     -- 错误或备注摘要
+    duration_ms  INTEGER DEFAULT 0,                        -- 该环节耗时（毫秒）
+    created_at   TEXT NOT NULL,                            -- 业务：事件记录时间
+    gmt_create   TEXT NOT NULL DEFAULT ({_TS_SQL})         -- 审计：记录创建时间（自动）
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_task         ON song_events(task_id);
+CREATE INDEX IF NOT EXISTS idx_events_song         ON song_events(song_id);
+CREATE INDEX IF NOT EXISTS idx_events_stage_status ON song_events(stage, status);
 
 -- 艺人别名表：标签库中的广泛沉淀默认数据 + 用户自定义映射
 CREATE TABLE IF NOT EXISTS artist_aliases (
@@ -227,6 +248,12 @@ class Storage:
                 self._conn.execute("ALTER TABLE songs ADD COLUMN tags TEXT")
             if task_cols and "execution_config" not in task_cols:
                 self._conn.execute("ALTER TABLE tasks ADD COLUMN execution_config TEXT")
+            if song_cols and "failed_stage" not in song_cols:
+                self._conn.execute("ALTER TABLE songs ADD COLUMN failed_stage TEXT")
+            if song_cols and "error_message" not in song_cols:
+                self._conn.execute("ALTER TABLE songs ADD COLUMN error_message TEXT")
+            if task_cols and "log_path" not in task_cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN log_path TEXT")
 
             # 回填旧数据的审计字段（用业务时间近似）
             self._conn.execute(
@@ -343,20 +370,69 @@ class Storage:
         title: str = "",
         tags: Optional[Dict[str, Any]] = None,
         size_bytes: int = 0,
+        failed_stage: str = "",
+        error_message: str = "",
     ) -> int:
         tags_json = json.dumps(tags, ensure_ascii=False) if tags else None
         ts = _now()
         with self._lock:
             cur = self._conn.execute(
                 "INSERT INTO songs (task_id, source_path, output_path, status, artist,"
-                " album, title, tags, bytes, created_at, gmt_create, gmt_modified)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " album, title, tags, bytes, failed_stage, error_message,"
+                " created_at, gmt_create, gmt_modified)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (task_id, str(source_path), str(output_path), status, artist or "",
                  album or "", title or "", tags_json, int(size_bytes or 0),
+                 failed_stage or None, error_message or None,
                  ts, ts, ts),
             )
             self._conn.commit()
             return cur.lastrowid
+
+    def add_song_events(
+        self,
+        task_id: int,
+        events: List[Dict[str, Any]],
+        song_id: Optional[int] = None,
+        source_path: str = "",
+    ) -> None:
+        """批量写入某首歌的环节事件（一次 executemany，避免逐条提交的写放大）。
+
+        ``events`` 每项形如 ``{"stage": str, "status": str, "message": str,
+        "duration_ms": int}``。
+        """
+        if not events:
+            return
+        ts = _now()
+        rows = [
+            (
+                int(task_id),
+                int(song_id) if song_id else None,
+                str(source_path),
+                str(e.get("stage", "")),
+                str(e.get("status", "")),
+                (e.get("message") or None),
+                int(e.get("duration_ms", 0) or 0),
+                ts,
+                ts,
+            )
+            for e in events
+        ]
+        with self._lock:
+            self._conn.executemany(
+                "INSERT INTO song_events (task_id, song_id, source_path, stage, status,"
+                " message, duration_ms, created_at, gmt_create)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                rows,
+            )
+            self._conn.commit()
+
+    def set_task_log_path(self, task_id: int, log_path: str) -> None:
+        with self._lock:
+            self._conn.execute(
+                "UPDATE tasks SET log_path=? WHERE id=?", (str(log_path), int(task_id))
+            )
+            self._conn.commit()
 
     def finish_task(
         self,
@@ -405,6 +481,43 @@ class Storage:
                 (int(task_id), int(limit), int(offset)),
             ).fetchall()
         return [self._row_to_song(r) for r in rows]
+
+    def get_task_events(
+        self, task_id: int, status: Optional[str] = None, limit: int = 2000
+    ) -> List[Dict[str, Any]]:
+        """获取某任务的环节事件（可选只看某状态，如 ``failed``），用于逐首排查。"""
+        sql = "SELECT * FROM song_events WHERE task_id=?"
+        params: List[Any] = [int(task_id)]
+        if status:
+            sql += " AND status=?"
+            params.append(str(status))
+        sql += " ORDER BY song_id, id LIMIT ?"
+        params.append(int(limit))
+        with self._lock:
+            rows = self._conn.execute(sql, params).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_stage_failure_stats(
+        self, task_id: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """按环节汇总各状态计数：用于「哪个环节最容易失败」的跨任务（或单任务）统计。
+
+        返回每个环节一行：``{stage, total, ok, skipped, failed}``，按 failed 降序。
+        """
+        where = "WHERE task_id=?" if task_id else ""
+        params: List[Any] = [int(task_id)] if task_id else []
+        with self._lock:
+            rows = self._conn.execute(
+                f"SELECT stage,"
+                f" COUNT(*) AS total,"
+                f" SUM(CASE WHEN status='ok' THEN 1 ELSE 0 END) AS ok,"
+                f" SUM(CASE WHEN status='skipped' THEN 1 ELSE 0 END) AS skipped,"
+                f" SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) AS failed"
+                f" FROM song_events {where}"
+                f" GROUP BY stage ORDER BY failed DESC, total DESC",
+                params,
+            ).fetchall()
+        return [dict(r) for r in rows]
 
     def count_task_songs(self, task_id: int) -> int:
         with self._lock:
