@@ -197,6 +197,23 @@ function SongResultRow({ song }) {
   );
 }
 
+function LogSongRow({ record, onClick }) {
+  const status = record.status || 'info';
+  const chipClass = status === 'success' ? 'chip-green' : status === 'failed' ? 'chip-red' : 'chip-amber';
+  const name = String(record.source || '').split(/[\\/]/).pop() || record.source;
+  return (
+    <button type="button" onClick={onClick} className="log-song-row" title={record.source}>
+      <div style={{ minWidth: 0 }}>
+        <div className="truncate-1" style={{ fontWeight: 800, color: 'var(--ink)' }}>{name}</div>
+        {record.failed_stage && (
+          <div className="truncate-1" style={{ marginTop: 3, color: 'var(--red)', fontSize: 12 }}>失败于 {record.failed_stage}</div>
+        )}
+      </div>
+      <span className={`chip ${chipClass}`}>{status}</span>
+    </button>
+  );
+}
+
 function LogRecord({ record }) {
   const status = record.status || 'info';
   const chipClass = status === 'success' ? 'chip-green' : status === 'failed' ? 'chip-red' : 'chip-amber';
@@ -250,6 +267,7 @@ export default function Progress() {
   const [detailView, setDetailView] = useState('songs');
   const [taskLog, setTaskLog] = useState([]);
   const [logReady, setLogReady] = useState(false);
+  const [selectedLogRecord, setSelectedLogRecord] = useState(null);
   const startTime = useRef(Date.now());
   const recordedTerminalStatus = useRef(null);
 
@@ -328,6 +346,7 @@ export default function Progress() {
     setDetailView('songs');
     setTaskLog([]);
     setLogReady(false);
+    setSelectedLogRecord(null);
     setStageStats([]);
     try {
       const [songs, stats] = await Promise.all([
@@ -346,6 +365,7 @@ export default function Progress() {
 
   const handleShowLog = async () => {
     setDetailView('log');
+    setSelectedLogRecord(null);
     if (logReady || !selectedTask) return;
     try {
       const records = await callQt('get_task_log', selectedTask.id, 1000);
@@ -492,7 +512,7 @@ export default function Progress() {
       </header>
 
       <section className="progress-grid">
-        <div style={{ display: 'grid', gap: 16 }}>
+        <div style={{ display: 'grid', gap: 0 }}>
           <section className="panel" style={{ padding: 22, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <ProgressDial value={selectedProgress} />
             <div style={{ marginTop: 18, textAlign: 'center' }}>
@@ -556,12 +576,18 @@ export default function Progress() {
           <div className="panel-header">
             <div>
               <h2 className="panel-title">
-                {selectedTask.status === 'running' ? '实时日志' : (detailView === 'log' ? '详细日志' : '歌曲结果')}
+                {selectedTask.status === 'running'
+                  ? '实时日志'
+                  : (detailView === 'log'
+                    ? (selectedLogRecord ? '单曲环节明细' : '详细日志')
+                    : '歌曲结果')}
               </h2>
               <p className="panel-subtitle">
                 {selectedTask.status === 'running'
                   ? 'Pipeline 输出的处理事件'
-                  : (detailView === 'log' ? '每首歌每个环节的明细（来自 JSONL 日志）' : '该任务写入数据库的单曲结果')}
+                  : (detailView === 'log'
+                    ? (selectedLogRecord ? '该歌曲每个环节的状态、耗时与错误' : '点击歌曲查看其各环节明细')
+                    : '该任务写入数据库的单曲结果')}
               </p>
             </div>
             {selectedTask.status === 'running' ? (
@@ -579,7 +605,7 @@ export default function Progress() {
                 <button
                   type="button"
                   className={detailView === 'songs' ? 'btn btn-primary' : 'btn btn-secondary'}
-                  onClick={() => setDetailView('songs')}
+                  onClick={() => { setDetailView('songs'); setSelectedLogRecord(null); }}
                 >
                   歌曲结果
                 </button>
@@ -611,9 +637,25 @@ export default function Progress() {
                     <div style={{ marginTop: 10, fontWeight: 850, color: 'var(--ink)' }}>没有日志记录</div>
                     <div style={{ marginTop: 4, fontSize: 13 }}>该任务可能在记录环节日志的功能上线前运行。</div>
                   </div>
+                ) : selectedLogRecord ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ alignSelf: 'flex-start' }}
+                      onClick={() => setSelectedLogRecord(null)}
+                    >
+                      ← 返回日志列表
+                    </button>
+                    <LogRecord record={selectedLogRecord} />
+                  </>
                 ) : (
                   taskLog.map((record, index) => (
-                    <LogRecord key={`${record.song_id || record.source}-${index}`} record={record} />
+                    <LogSongRow
+                      key={`${record.song_id || record.source}-${index}`}
+                      record={record}
+                      onClick={() => setSelectedLogRecord(record)}
+                    />
                   ))
                 )
               ) : !taskSongsReady ? (
