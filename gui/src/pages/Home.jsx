@@ -380,7 +380,7 @@ export default function Home() {
       inputPath,
       outputPath: deriveOutputPath(inputPath),
     });
-    store.setWorkflowStep(2);
+    store.setWorkflowStep(1);
     store.setCurrentPage('scrape');
   };
 
@@ -493,7 +493,6 @@ export default function Home() {
           <div className="library-browser-column">
             <div className="library-section-head">
               <div>
-                <h2 className="panel-title">当前目录文件</h2>
                 <p className="panel-subtitle">
                   {visibleItems.length > 0 ? `${visibleItems.length} 项` : '当前目录暂无可展示文件'}
                 </p>
