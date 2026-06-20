@@ -289,6 +289,97 @@ textarea:focus-visible {
   height: 7px;
 }
 
+.stable-table-wrap {
+  min-height: 320px;
+  overflow-x: auto;
+}
+
+.table-skeleton-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) 96px 64px 64px 64px minmax(140px, 0.8fr);
+  gap: 14px;
+  align-items: center;
+  min-width: 760px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.table-skeleton-row span,
+.dictionary-row-skeleton span {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(222, 212, 195, 0.52), rgba(255, 253, 247, 0.86), rgba(222, 212, 195, 0.52));
+}
+
+.table-skeleton-row span:nth-child(2),
+.table-skeleton-row span:nth-child(3),
+.table-skeleton-row span:nth-child(4),
+.table-skeleton-row span:nth-child(5) {
+  width: 76%;
+}
+
+.task-list-panel,
+.dictionary-panel {
+  min-height: 430px;
+  overflow: hidden;
+}
+
+.task-list-skeleton {
+  min-height: 320px;
+}
+
+.task-detail-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 560px;
+  overflow: hidden;
+}
+
+.task-detail-scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  padding: 14px;
+  overflow-y: auto;
+}
+
+.task-song-skeleton {
+  display: grid;
+  gap: 10px;
+}
+
+.dictionary-form-panel {
+  min-height: 0;
+  max-height: 0;
+  margin-bottom: 16px;
+  overflow: hidden;
+  border-color: transparent;
+  opacity: 0;
+}
+
+.dictionary-form-panel.is-open {
+  min-height: 88px;
+  max-height: 220px;
+  padding: 16px;
+  border-color: var(--line);
+  opacity: 1;
+}
+
+.dictionary-row-skeleton {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) 92px;
+  gap: 14px;
+  align-items: center;
+  min-height: 31px;
+}
+
+.dictionary-row-skeleton span:nth-child(3) {
+  width: 72%;
+}
+
 .library-start-panel {
   padding: 18px;
   margin-bottom: 16px;
@@ -483,10 +574,17 @@ textarea:focus-visible {
 .workflow-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  min-height: 358px;
+}
+
+.workflow-panel {
+  min-height: 470px;
+  overflow: hidden;
 }
 
 .workflow-path-stack {
   display: grid;
+  min-height: 358px;
 }
 
 .workflow-path-section {

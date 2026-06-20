@@ -153,8 +153,10 @@ export default function Progress() {
   const [autoScroll, setAutoScroll] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
   const [tasks, setTasks] = useState([]);
+  const [tasksReady, setTasksReady] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [taskSongs, setTaskSongs] = useState([]);
+  const [taskSongsReady, setTaskSongsReady] = useState(false);
   const startTime = useRef(Date.now());
   const recordedTerminalStatus = useRef(null);
 
@@ -210,6 +212,8 @@ export default function Progress() {
         if (active) setTasks(list || []);
       } catch (e) {
         if (active) setTasks([]);
+      } finally {
+        if (active) setTasksReady(true);
       }
     })();
     return () => { active = false; };
@@ -217,11 +221,15 @@ export default function Progress() {
 
   const handleSelectTask = async (task) => {
     setSelectedTask(task);
+    setTaskSongs([]);
+    setTaskSongsReady(false);
     try {
       const songs = await callQt('get_task_songs', task.id, 80, 0);
       setTaskSongs(songs || []);
     } catch (e) {
       setTaskSongs([]);
+    } finally {
+      setTaskSongsReady(true);
     }
   };
 
@@ -254,7 +262,7 @@ export default function Progress() {
           <button type="button" className="btn btn-secondary" onClick={() => setCurrentPage('scrape')}>新建刮削</button>
         </header>
 
-        <section className="panel" style={{ overflow: 'hidden' }}>
+        <section className="panel task-list-panel">
           <div className="panel-header">
             <div>
               <h2 className="panel-title">任务列表</h2>
@@ -262,7 +270,20 @@ export default function Progress() {
             </div>
             <span className="chip chip-blue">{tasks.length} 个任务</span>
           </div>
-          {tasks.length === 0 ? (
+          {!tasksReady ? (
+            <div className="task-list-skeleton">
+              {[0, 1, 2, 3, 4].map((item) => (
+                <div key={item} className="table-skeleton-row">
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              ))}
+            </div>
+          ) : tasks.length === 0 ? (
             <div style={{ padding: 18 }}>
               <div className="empty-state">
                 <Icons.Clock />
@@ -271,7 +292,7 @@ export default function Progress() {
               </div>
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
+            <div className="stable-table-wrap">
               <table className="table">
                 <thead>
                   <tr>
@@ -380,7 +401,7 @@ export default function Progress() {
           </div>
         </div>
 
-        <section className="panel" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 560 }}>
+        <section className="panel task-detail-panel">
           <div className="panel-header">
             <div>
               <h2 className="panel-title">{selectedTask.status === 'running' ? '实时日志' : '任务歌曲'}</h2>
@@ -397,9 +418,19 @@ export default function Progress() {
             </label>
           </div>
 
-          <div id="logs-container" style={{ padding: 14, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div id="logs-container" className="task-detail-scroll">
             {selectedTask.status !== 'running' ? (
-              taskSongs.length === 0 ? (
+              !taskSongsReady ? (
+                <div className="task-song-skeleton">
+                  {[0, 1, 2, 3, 4].map((item) => (
+                    <div key={item} className="dashboard-task-skeleton">
+                      <span />
+                      <span />
+                      <span />
+                    </div>
+                  ))}
+                </div>
+              ) : taskSongs.length === 0 ? (
                 <div className="empty-state">
                   <Icons.File />
                   <div style={{ marginTop: 10, fontWeight: 850, color: 'var(--ink)' }}>没有歌曲记录</div>

@@ -16,6 +16,7 @@ export default function Dictionary() {
   const [searchQuery, setSearchQuery] = useState('');
   const [aliases, setAliases] = useState([]);
   const [rules, setRules] = useState([]);
+  const [dictionaryReady, setDictionaryReady] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [aliasForm, setAliasForm] = useState(emptyAlias);
   const [ruleForm, setRuleForm] = useState(emptyRule);
@@ -27,10 +28,11 @@ export default function Dictionary() {
     ]);
     setAliases(aliasRows || []);
     setRules(ruleRows || []);
+    setDictionaryReady(true);
   };
 
   useEffect(() => {
-    loadData().catch(() => {});
+    loadData().catch(() => setDictionaryReady(true));
   }, [callQt]);
 
   const artists = useMemo(() => aliases.filter((item) => (
@@ -109,33 +111,35 @@ export default function Dictionary() {
         </div>
       </div>
 
-      {showForm && (
-        <section className="panel" style={{ padding: 16, marginBottom: 16 }}>
-          {activeTab === 'artists' ? (
-            <div className="review-grid">
-              <input className="input" placeholder="原始名称，例如 G.E.M." value={aliasForm.original} onChange={(e) => setAliasForm({ ...aliasForm, original: e.target.value })} />
-              <input className="input" placeholder="标准名称，例如 邓紫棋" value={aliasForm.standardized} onChange={(e) => setAliasForm({ ...aliasForm, standardized: e.target.value })} />
+      <section className={`panel dictionary-form-panel ${showForm ? 'is-open' : ''}`}>
+        {showForm && (
+          <>
+            {activeTab === 'artists' ? (
+              <div className="review-grid">
+                <input className="input" placeholder="原始名称，例如 G.E.M." value={aliasForm.original} onChange={(e) => setAliasForm({ ...aliasForm, original: e.target.value })} />
+                <input className="input" placeholder="标准名称，例如 邓紫棋" value={aliasForm.standardized} onChange={(e) => setAliasForm({ ...aliasForm, standardized: e.target.value })} />
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(180px, .45fr) minmax(0, .8fr) auto', gap: 10 }}>
+                <input className="input" placeholder="匹配模式" value={ruleForm.pattern} onChange={(e) => setRuleForm({ ...ruleForm, pattern: e.target.value })} />
+                <input className="input" placeholder="替换为" value={ruleForm.replacement} onChange={(e) => setRuleForm({ ...ruleForm, replacement: e.target.value })} />
+                <input className="input" placeholder="说明" value={ruleForm.description} onChange={(e) => setRuleForm({ ...ruleForm, description: e.target.value })} />
+                <label className="chip" style={{ cursor: 'pointer' }}>
+                  <input type="checkbox" checked={ruleForm.enabled} onChange={(e) => setRuleForm({ ...ruleForm, enabled: e.target.checked })} />
+                  启用
+                </label>
+              </div>
+            )}
+            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>取消</button>
+              <button type="button" className="btn btn-primary" onClick={handleAdd}>保存</button>
             </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(180px, .45fr) minmax(0, .8fr) auto', gap: 10 }}>
-              <input className="input" placeholder="匹配模式" value={ruleForm.pattern} onChange={(e) => setRuleForm({ ...ruleForm, pattern: e.target.value })} />
-              <input className="input" placeholder="替换为" value={ruleForm.replacement} onChange={(e) => setRuleForm({ ...ruleForm, replacement: e.target.value })} />
-              <input className="input" placeholder="说明" value={ruleForm.description} onChange={(e) => setRuleForm({ ...ruleForm, description: e.target.value })} />
-              <label className="chip" style={{ cursor: 'pointer' }}>
-                <input type="checkbox" checked={ruleForm.enabled} onChange={(e) => setRuleForm({ ...ruleForm, enabled: e.target.checked })} />
-                启用
-              </label>
-            </div>
-          )}
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>取消</button>
-            <button type="button" className="btn btn-primary" onClick={handleAdd}>保存</button>
-          </div>
-        </section>
-      )}
+          </>
+        )}
+      </section>
 
       {activeTab === 'artists' && (
-        <section className="panel" style={{ overflow: 'hidden' }}>
+        <section className="panel dictionary-panel">
           <div className="panel-header">
             <div>
               <h2 className="panel-title">艺人名称映射</h2>
@@ -143,7 +147,7 @@ export default function Dictionary() {
             </div>
             <span className="chip chip-blue">{artists.length} 条</span>
           </div>
-          <div style={{ overflowX: 'auto' }}>
+          <div className="stable-table-wrap">
             <table className="table">
               <thead>
                 <tr>
@@ -155,7 +159,19 @@ export default function Dictionary() {
                 </tr>
               </thead>
               <tbody>
-                {artists.map((item) => (
+                {!dictionaryReady ? (
+                  [0, 1, 2, 3, 4].map((item) => (
+                    <tr key={item}>
+                      <td colSpan="5">
+                        <div className="dictionary-row-skeleton">
+                          <span />
+                          <span />
+                          <span />
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : artists.map((item) => (
                   <tr key={item.id}>
                     <td className="mono">{item.original}</td>
                     <td style={{ fontWeight: 850, color: 'var(--ink)' }}>{item.standardized}</td>
@@ -173,7 +189,7 @@ export default function Dictionary() {
       )}
 
       {activeTab === 'rules' && (
-        <section className="panel" style={{ overflow: 'hidden' }}>
+        <section className="panel dictionary-panel">
           <div className="panel-header">
             <div>
               <h2 className="panel-title">文本替换规则</h2>
@@ -181,7 +197,7 @@ export default function Dictionary() {
             </div>
             <span className="chip chip-blue">{filteredRules.length} 条</span>
           </div>
-          <div style={{ overflowX: 'auto' }}>
+          <div className="stable-table-wrap">
             <table className="table">
               <thead>
                 <tr>
@@ -193,7 +209,19 @@ export default function Dictionary() {
                 </tr>
               </thead>
               <tbody>
-                {filteredRules.map((item) => (
+                {!dictionaryReady ? (
+                  [0, 1, 2, 3, 4].map((item) => (
+                    <tr key={item}>
+                      <td colSpan="5">
+                        <div className="dictionary-row-skeleton">
+                          <span />
+                          <span />
+                          <span />
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : filteredRules.map((item) => (
                   <tr key={item.id}>
                     <td className="mono">{item.pattern}</td>
                     <td>{item.replacement || '(空)'}</td>

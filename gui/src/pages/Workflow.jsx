@@ -102,6 +102,17 @@ export function deriveOutputPath(inputPath) {
   return `${parent}${separator}${outputName}`;
 }
 
+function withDerivedOutputPath(config) {
+  return {
+    ...config,
+    outputPath: config.outputPath || deriveOutputPath(config.inputPath),
+  };
+}
+
+function sameWorkflowConfig(a, b) {
+  return Object.keys({ ...a, ...b }).every((key) => a[key] === b[key]);
+}
+
 function SwitchRow({ icon: IconComponent, title, description, checked, onChange }) {
   return (
     <label
@@ -189,15 +200,13 @@ export default function Workflow() {
   } = useAppStore();
   const workflowConfig = useWorkflowConfig();
   const { selectDirectory, startProcess } = useQtBridge();
-  const [localConfig, setLocalConfig] = useState(workflowConfig);
+  const [localConfig, setLocalConfig] = useState(() => withDerivedOutputPath(workflowConfig));
   const [isProcessing, setIsProcessing] = useState(false);
   const [outputPathManuallyChanged, setOutputPathManuallyChanged] = useState(false);
 
   useEffect(() => {
-    setLocalConfig({
-      ...workflowConfig,
-      outputPath: workflowConfig.outputPath || deriveOutputPath(workflowConfig.inputPath),
-    });
+    const nextConfig = withDerivedOutputPath(workflowConfig);
+    setLocalConfig((prev) => (sameWorkflowConfig(prev, nextConfig) ? prev : nextConfig));
     setOutputPathManuallyChanged(false);
   }, [workflowConfig]);
 
@@ -294,7 +303,7 @@ export default function Workflow() {
 
       <StepRail currentStep={workflowStep} />
 
-      <section className="panel" style={{ overflow: 'hidden' }}>
+      <section className="panel workflow-panel">
         {workflowStep === 1 ? (
           <div className="workflow-path-stack">
             <div className="workflow-path-section">
