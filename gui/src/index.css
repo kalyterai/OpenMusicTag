@@ -863,6 +863,7 @@ textarea:focus-visible {
 
 .workflow-switch-stack {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   min-width: 0;
 }
@@ -1286,6 +1287,7 @@ textarea:focus-visible {
   .workflow-setting-row,
   .workflow-review-line,
   .workflow-number-control,
+  .workflow-switch-stack,
   .library-audio-player {
     grid-template-columns: 1fr;
   }
