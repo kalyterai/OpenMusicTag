@@ -194,12 +194,14 @@ class MusicOrganizerPipeline:
             return None
         info = info or {}
         failed_stage, error_message = self._failure_from_trace(trace)
+        abs_source = os.path.abspath(str(source_path)) if source_path else ""
+        abs_output = os.path.abspath(str(output_path)) if output_path else ""
         song_id = None
         try:
             song_id = self.storage.add_song(
                 task_id, status,
-                source_path=str(source_path),
-                output_path=str(output_path) if output_path else "",
+                source_path=abs_source,
+                output_path=abs_output,
                 artist=info.get("artist", ""),
                 album=info.get("album", ""),
                 title=info.get("title", ""),
@@ -213,11 +215,11 @@ class MusicOrganizerPipeline:
         if trace:
             try:
                 self.storage.add_song_events(
-                    task_id, trace, song_id=song_id, source_path=str(source_path)
+                    task_id, trace, song_id=song_id, source_path=abs_source
                 )
             except Exception:
                 pass
-        self._write_log_line(status, source_path, failed_stage, song_id, trace)
+        self._write_log_line(status, abs_source, failed_stage, song_id, trace)
         return song_id
 
     def _write_log_line(self, status, source_path, failed_stage, song_id, trace) -> None:

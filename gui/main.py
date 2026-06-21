@@ -9,7 +9,7 @@ from pathlib import Path
 # 确保 gui 目录在路径中
 sys.path.insert(0, str(Path(__file__).parent))
 
-from PyQt6.QtCore import QUrl
+from PyQt6.QtCore import QTimer, QUrl
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtGui import QIcon
@@ -55,6 +55,14 @@ def main():
     # 创建并显示窗口
     window = MainWindow()
     window.show()
+    window.raise_()
+    window.activateWindow()
+
+    def focus_window():
+        window.raise_()
+        window.activateWindow()
+
+    QTimer.singleShot(250, focus_window)
 
     sys.exit(app.exec())
 

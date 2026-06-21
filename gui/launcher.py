@@ -9,6 +9,27 @@ import os
 import sys
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_VENV_PYTHON = PROJECT_ROOT / ".venv" / "bin" / "python"
+
+
+def _ensure_project_python() -> None:
+    """Re-enter through the project uv environment when launched by system Python."""
+    if not PROJECT_VENV_PYTHON.exists():
+        return
+
+    try:
+        current = Path(sys.executable).resolve()
+        expected = PROJECT_VENV_PYTHON.resolve()
+    except OSError:
+        return
+
+    if current != expected:
+        os.execv(str(expected), [str(expected), str(Path(__file__).resolve()), *sys.argv[1:]])
+
+
+_ensure_project_python()
+
 # 在导入任何其他模块之前设置环境变量
 if sys.platform == 'darwin':
     # 设置macOS应用名称
