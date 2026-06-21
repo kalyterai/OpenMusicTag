@@ -135,44 +135,6 @@ function LogItem({ log }) {
   );
 }
 
-function StageStats({ rows, title, subtitle }) {
-  return (
-    <section className="panel" style={{ padding: 16 }}>
-      <div style={{ marginBottom: 12 }}>
-        <h2 className="panel-title">{title}</h2>
-        {subtitle && <p className="panel-subtitle" style={{ marginTop: 4 }}>{subtitle}</p>}
-      </div>
-      {rows.length === 0 ? (
-        <div className="empty-state" style={{ minHeight: 120 }}>
-          <Icons.Info />
-          <div style={{ marginTop: 8, fontSize: 13 }}>暂无环节数据</div>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gap: 8 }}>
-          {rows.map((row) => {
-            const total = row.total || 0;
-            const failed = row.failed || 0;
-            const failRate = total > 0 ? Math.round((failed / total) * 100) : 0;
-            return (
-              <div key={row.stage} style={{ display: 'grid', gap: 6 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13 }}>
-                  <span style={{ fontWeight: 750, color: 'var(--ink)' }} className="truncate-1">{row.stage}</span>
-                  <span style={{ color: failed > 0 ? 'var(--red)' : 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>
-                    {failed > 0 ? `${failed} 失败 / ${total}` : `${total}`}
-                  </span>
-                </div>
-                <div style={{ height: 6, borderRadius: 999, overflow: 'hidden', background: 'rgba(222, 212, 195, 0.72)' }}>
-                  <div style={{ width: `${failRate}%`, height: '100%', background: 'var(--red)' }} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </section>
-  );
-}
-
 function SongResultRow({ song }) {
   const isFailed = song.status === 'failed';
   const chipClass = song.status === 'success' ? 'chip-green' : isFailed ? 'chip-red' : 'chip-amber';
@@ -262,8 +224,6 @@ export default function Progress() {
   const [selectedTask, setSelectedTask] = useState(null);
   const [taskSongs, setTaskSongs] = useState([]);
   const [taskSongsReady, setTaskSongsReady] = useState(false);
-  const [globalStageStats, setGlobalStageStats] = useState([]);
-  const [stageStats, setStageStats] = useState([]);
   const [detailView, setDetailView] = useState('songs');
   const [taskLog, setTaskLog] = useState([]);
   const [logReady, setLogReady] = useState(false);
@@ -323,15 +283,11 @@ export default function Progress() {
     let active = true;
     (async () => {
       try {
-        const [list, stats] = await Promise.all([
-          callQt('get_recent_tasks', 50),
-          callQt('get_stage_failure_stats', 0),
-        ]);
+        const list = await callQt('get_recent_tasks', 50);
         if (!active) return;
         setTasks(list || []);
-        setGlobalStageStats(stats || []);
       } catch (e) {
-        if (active) { setTasks([]); setGlobalStageStats([]); }
+        if (active) setTasks([]);
       } finally {
         if (active) setTasksReady(true);
       }
@@ -347,17 +303,11 @@ export default function Progress() {
     setTaskLog([]);
     setLogReady(false);
     setSelectedLogRecord(null);
-    setStageStats([]);
     try {
-      const [songs, stats] = await Promise.all([
-        callQt('get_task_songs', task.id, 80, 0),
-        callQt('get_stage_failure_stats', task.id),
-      ]);
+      const songs = await callQt('get_task_songs', task.id, 80, 0);
       setTaskSongs(songs || []);
-      setStageStats(stats || []);
     } catch (e) {
       setTaskSongs([]);
-      setStageStats([]);
     } finally {
       setTaskSongsReady(true);
     }
@@ -480,14 +430,6 @@ export default function Progress() {
             </div>
           )}
         </section>
-
-        <div style={{ marginTop: 16 }}>
-          <StageStats
-            rows={globalStageStats}
-            title="环节失败统计"
-            subtitle="跨所有任务，哪个环节最容易出问题"
-          />
-        </div>
       </div>
     );
   }
@@ -542,10 +484,6 @@ export default function Progress() {
               ))}
             </div>
           </section>
-
-          {stageStats.length > 0 && (
-            <StageStats rows={stageStats} title="环节统计" subtitle="本任务各环节的成功/失败" />
-          )}
 
           <div style={{ display: 'grid', gap: 8 }}>
             {selectedTask.status === 'running' && taskStatus === 'processing' && (

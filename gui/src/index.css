@@ -119,7 +119,8 @@ textarea:focus-visible {
   min-width: 0;
   min-height: 0;
   overflow-x: hidden;
-  overflow-y: scroll;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .page {
@@ -404,7 +405,8 @@ textarea:focus-visible {
   gap: 10px;
   min-height: 0;
   padding: 14px;
-  overflow-y: scroll;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .task-song-skeleton {
@@ -572,7 +574,8 @@ textarea:focus-visible {
 .library-scroll-list {
   min-height: 0;
   flex: 1;
-  overflow-y: scroll;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -608,7 +611,8 @@ textarea:focus-visible {
   padding: 24px;
   display: grid;
   gap: 20px;
-  overflow-y: scroll;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .library-detail-overview {
@@ -947,6 +951,16 @@ textarea:focus-visible {
   gap: 0;
   min-width: 0;
   width: 100%;
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+}
+
+/* 紧贴的卡片去掉各自圆角，由外层统一裁切外圆角，消除拼接处的圆角缺口 */
+.progress-grid > section,
+.progress-grid > div > .panel {
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .log-song-row {
