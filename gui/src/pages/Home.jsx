@@ -217,7 +217,6 @@ export default function Home() {
     <div className="page library-page animate-fadeIn">
       <header className="page-header">
         <div>
-          <p className="page-kicker">Library inspector</p>
           <h1 className="page-title">资源库详情</h1>
           <p className="page-copy">
             浏览目录、抽查音频标签，并在处理前确认文件名、艺人、专辑和刮削字段是否可信。

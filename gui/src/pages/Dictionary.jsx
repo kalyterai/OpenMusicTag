@@ -76,7 +76,6 @@ export default function Dictionary() {
     <div className="page animate-fadeIn">
       <header className="page-header">
         <div>
-          <p className="page-kicker">Tag dictionary</p>
           <h1 className="page-title">标签库</h1>
           <p className="page-copy">
             使用 SQLite 管理艺人映射和文本清洗规则。默认数据会在数据库初始化时写入，后续可以按你的音乐库继续沉淀。

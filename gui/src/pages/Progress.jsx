@@ -493,7 +493,6 @@ export default function Progress() {
       <div className="page animate-fadeIn">
         <header className="page-header">
           <div>
-            <p className="page-kicker">Task history</p>
             <h1 className="page-title">任务详情</h1>
             <p className="page-copy">先选择一个任务批次，再查看处理统计、运行配置和该任务写入的歌曲。</p>
           </div>
@@ -658,7 +657,6 @@ export default function Progress() {
     <div className="page library-page animate-fadeIn">
       <header className="page-header">
         <div>
-          <p className="page-kicker">Task monitor</p>
           <h1 className="page-title">任务详情</h1>
           <p className="page-copy">
             浏览本次任务的输出目录，抽查每首歌的标签、封面与各环节日志。

@@ -327,7 +327,6 @@ export default function Workflow() {
     <div className="page page-narrow animate-fadeIn">
       <header className="page-header">
         <div>
-          <p className="page-kicker">Batch setup</p>
           <h1 className="page-title">新建刮削任务</h1>
           <p className="page-copy">
             选择输入与输出目录，启用需要的清洗、刮削和整理规则，然后交给 Pipeline 批量处理。

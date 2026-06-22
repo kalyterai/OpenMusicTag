@@ -262,7 +262,6 @@ export default function Dashboard() {
     <div className="page animate-fadeIn">
       <header className="page-header">
         <div>
-          <p className="page-kicker">Music library control</p>
           <h1 className="page-title">音乐库控制面板</h1>
           <p className="page-copy">
             查看刮削结果、处理容量和近期任务状态，从这里继续整理你的本地或网络音乐目录。

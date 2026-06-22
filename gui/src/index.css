@@ -169,14 +169,6 @@ textarea:focus-visible {
   flex: 1 1 320px;
 }
 
-.page-kicker {
-  margin: 0 0 8px;
-  color: var(--groove);
-  font-size: 12px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
 .page-title {
   margin: 0;
   color: var(--ink);
