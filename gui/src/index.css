@@ -407,6 +407,55 @@ textarea:focus-visible {
   font-size: 12px;
 }
 
+/* 删除后可撤销提示（右下角浮条，6 秒后自动消失） */
+.undo-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px 10px 16px;
+  border-radius: 12px;
+  background: var(--ink);
+  color: #fff;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
+.undo-toast-text {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.undo-toast-btn {
+  border: none;
+  background: transparent;
+  color: #7db4ff;
+  font-size: 13px;
+  font-weight: 850;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.undo-toast-btn:hover {
+  text-decoration: underline;
+}
+
+.undo-toast-close {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.undo-toast-close:hover {
+  color: #fff;
+}
+
 .task-cell-stats {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;

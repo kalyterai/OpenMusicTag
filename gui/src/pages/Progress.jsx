@@ -210,6 +210,8 @@ export default function Progress() {
   const [taskLog, setTaskLog] = useState([]);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [undoTask, setUndoTask] = useState(null); // 最近软删除的任务，供「撤销」找回
+  const undoTimerRef = useRef(null);
 
   // 输出目录浏览状态（与资源库详情一致）
   const [outputPath, setOutputPath] = useState('');
@@ -298,6 +300,15 @@ export default function Progress() {
     }
   };
 
+  const clearUndoTimer = () => {
+    if (undoTimerRef.current) {
+      clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => clearUndoTimer, []);
+
   const handleDeleteTask = async (task) => {
     setDeletingId(task.id);
     try {
@@ -305,12 +316,35 @@ export default function Progress() {
       if (ok) {
         setTasks((prev) => prev.filter((t) => t.id !== task.id));
         if (selectedTask?.id === task.id) setSelectedTask(null);
+        // 弹出可撤销提示：6 秒内可一键找回
+        clearUndoTimer();
+        setUndoTask(task);
+        undoTimerRef.current = setTimeout(() => {
+          setUndoTask(null);
+          undoTimerRef.current = null;
+        }, 6000);
       }
     } catch (e) {
       // 忽略：删除失败时保留原列表
     } finally {
       setDeletingId(null);
       setConfirmDeleteId(null);
+    }
+  };
+
+  const handleUndoDelete = async () => {
+    const task = undoTask;
+    if (!task) return;
+    clearUndoTimer();
+    setUndoTask(null);
+    try {
+      const ok = await callQt('restore_task', task.id);
+      if (ok) {
+        // 重新插回列表并保持按 id 倒序
+        setTasks((prev) => [...prev, task].sort((a, b) => b.id - a.id));
+      }
+    } catch (e) {
+      // 找回失败则保持已删除状态
     }
   };
 
@@ -482,6 +516,21 @@ export default function Progress() {
             </div>
           )}
         </section>
+
+        {undoTask && (
+          <div className="undo-toast animate-slideIn" role="status">
+            <span className="undo-toast-text">已删除任务 #{undoTask.id}</span>
+            <button type="button" className="undo-toast-btn" onClick={handleUndoDelete}>撤销</button>
+            <button
+              type="button"
+              className="undo-toast-close"
+              onClick={() => { clearUndoTimer(); setUndoTask(null); }}
+              aria-label="关闭"
+            >
+              ×
+            </button>
+          </div>
+        )}
       </div>
     );
   }

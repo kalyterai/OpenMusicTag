@@ -399,6 +399,15 @@ class Bridge(QObject):
             print(f"[ERROR] 删除任务失败: {e}")
             return False
 
+    @pyqtSlot(int, result=bool)
+    def restore_task(self, task_id: int) -> bool:
+        """撤销软删除：任务重新出现在列表与控制台统计中。"""
+        try:
+            return self.storage.restore_task(task_id)
+        except Exception as e:
+            print(f"[ERROR] 找回任务失败: {e}")
+            return False
+
     @pyqtSlot(int, result=list)
     def get_daily_activity(self, days: int = 7) -> list:
         """最近 N 天每天成功处理的歌曲数（活跃度图）。"""
