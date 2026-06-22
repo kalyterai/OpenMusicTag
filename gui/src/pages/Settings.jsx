@@ -101,7 +101,7 @@ export default function Settings() {
         <div>
           <h1 className="page-title">系统设置</h1>
           <p className="page-copy">
-            这里只放整个软件级别的偏好。刮削线程、封面、查重、MusicBrainz 等运行配置请在「新建刮削」中为每个任务单独设置。
+            整个软件级别的通用偏好设置。
           </p>
         </div>
         <div className="toolbar">

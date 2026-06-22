@@ -102,7 +102,7 @@
 
 ## 📄 许可证 (License)
 
-本项目基于 [MIT License](LICENSE) 协议开源。请自由使用、修改和分发，但请保留原作者的版权声明。
+本项目基于 [Apache License 2.0](LICENSE) 协议开源。请自由使用、修改和分发，但请保留原作者的版权与许可声明。
 
 ---
 <div align="center">

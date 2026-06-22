@@ -56,9 +56,9 @@ export const PAGES = {
 // 应用信息
 export const APP_INFO = {
   name: 'OpenMusicTag',
-  version: '1.0.0',
+  version: '0.1.0',
   description: '通用音乐刮削软件',
-  license: 'MIT License',
+  license: 'Apache License 2.0',
   copyright: 'Copyright © OpenMusicTag contributors',
   github: 'https://github.com/kalyterai/OpenMusicTag'
 };
