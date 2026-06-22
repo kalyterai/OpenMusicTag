@@ -76,9 +76,10 @@ if sys.platform == 'darwin':
         info_plist={
             'CFBundleName': 'OpenMusicTag',
             'CFBundleDisplayName': 'OpenMusicTag',
-            'CFBundleShortVersionString': '1.0.0',
-            'CFBundleVersion': '1.0.0',
+            'CFBundleShortVersionString': '0.1.0',
+            'CFBundleVersion': '0.1.0',
             'NSHighResolutionCapable': 'True',
             'NSRequiresAquaSystemAppearance': 'False',
+            'LSMinimumSystemVersion': '11.0',
         },
     )
