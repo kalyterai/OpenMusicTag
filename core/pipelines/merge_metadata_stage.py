@@ -1,0 +1,59 @@
+# -*- coding: utf-8 -*-
+"""阶段8：合并元数据（优先使用刮削数据）"""
+
+from typing import TYPE_CHECKING
+
+from core.base import PipelineStage
+
+if TYPE_CHECKING:
+    from core.context import PipelineContext
+    from core.models import AudioFile
+
+
+@PipelineStage.register("MergeMetadataStage")
+class MergeMetadataStage(PipelineStage):
+    """阶段8：合并元数据（优先使用刮削数据）"""
+
+    NAME = "合并元数据"
+
+    def process(self, audio_file: "AudioFile", context: "PipelineContext") -> "AudioFile":
+        """合并原始标签和刮削数据"""
+        scraped = audio_file.scraped
+        raw = audio_file.raw_tags
+
+        # 优先使用刮削数据，不填充默认值
+        merged = {
+            "title": scraped.get("title") or raw.get("title") or "",
+            "artist": scraped.get("artist") or raw.get("artist") or "",
+            "album": scraped.get("album") or raw.get("album") or "",
+            "albumartist": scraped.get("albumartist") or raw.get("albumartist") or "",
+            "year": scraped.get("year") or raw.get("year") or "",
+            "composer": scraped.get("composer") or raw.get("composer") or "",
+            "genre": scraped.get("genre") or raw.get("genre") or "",
+            "description": scraped.get("description") or "",
+        }
+
+        audio_file.final_metadata = merged
+
+        # 记录每个字段最终采用了哪份数据，以及相对原始标签的变化
+        changes = []
+        from_scrape = []
+        for key in ("title", "artist", "album", "year", "genre", "composer"):
+            final_value = merged.get(key, "")
+            raw_value = raw.get(key, "")
+            scraped_value = scraped.get(key, "")
+            if scraped_value and final_value == scraped_value and scraped_value != raw_value:
+                from_scrape.append(key)
+            if final_value != raw_value:
+                changes.append({"field": key, "before": raw_value, "after": final_value})
+
+        if from_scrape:
+            context.note(
+                f"合并完成，{len(from_scrape)} 个字段采用刮削数据（{ '、'.join(from_scrape) }）",
+                changes=changes,
+            )
+        elif changes:
+            context.note("合并完成，沿用清理后的原始标签（有字段调整）", changes=changes)
+        else:
+            context.note("合并完成，最终标签与原始标签一致")
+        return audio_file

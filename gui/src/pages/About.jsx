@@ -12,7 +12,7 @@ export default function About() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-white">OpenMusicTag</h1>
-            <p className="text-text-secondary">极空间 NAS 音乐整理工具</p>
+            <p className="text-text-secondary">通用音乐刮削软件</p>
           </div>
         </div>
 

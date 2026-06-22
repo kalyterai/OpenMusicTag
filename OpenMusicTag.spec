@@ -2,8 +2,8 @@
 
 
 a = Analysis(
-    ['/Users/xiaozhuzhu/code/python/OpenMusicTag/gui/launcher.py'],
-    pathex=[],
+    ['/Users/xiaozhuzhu/code/python/OpenMusicTag/gui/main.py'],
+    pathex=['/Users/xiaozhuzhu/code/python/OpenMusicTag', '/Users/xiaozhuzhu/code/python/OpenMusicTag/gui'],
     binaries=[],
     datas=[('/Users/xiaozhuzhu/code/python/OpenMusicTag/gui/dist', 'dist'), ('/Users/xiaozhuzhu/code/python/OpenMusicTag/gui/logo.png', '.')],
     hiddenimports=['PyQt6', 'PyQt6.QtWebEngineWidgets', 'PyQt6.QtWebChannel', 'setproctitle', 'opencc', 'mutagen', 'musicbrainzngs', 'requests', 'PIL'],
@@ -47,5 +47,13 @@ app = BUNDLE(
     coll,
     name='OpenMusicTag.app',
     icon='/Users/xiaozhuzhu/code/python/OpenMusicTag/gui/logo.png',
-    bundle_identifier=None,
+    bundle_identifier='com.openmusictag.app',
+    version='0.1.0',
+    info_plist={
+        'CFBundleShortVersionString': '0.1.0',
+        'CFBundleVersion': '0.1.0',
+        'NSHighResolutionCapable': True,
+        'NSRequiresAquaSystemAppearance': False,
+        'LSMinimumSystemVersion': '11.0',
+    },
 )

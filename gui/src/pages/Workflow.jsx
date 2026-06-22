@@ -1,177 +1,315 @@
-import React, { useState, useEffect } from 'react';
-import useAppStore from '../stores/appStore';
+import React, { useEffect, useState } from 'react';
+import useAppStore, { useWorkflowConfig } from '../stores/appStore';
 import { useQtBridge } from '../bridge';
+import { deriveOutputPath } from '../utils/paths';
 
-// SVG Icons
+const Icon = ({ children }) => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    {children}
+  </svg>
+);
+
 const Icons = {
   Folder: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-    </svg>
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.5 7.5A2.5 2.5 0 016 5h4l2 2h6a2.5 2.5 0 012.5 2.5v7A2.5 2.5 0 0118 19H6a2.5 2.5 0 01-2.5-2.5v-9z" />
+    </Icon>
   ),
-  Settings: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-  ),
-  Image: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-    </svg>
-  ),
-  Language: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-    </svg>
-  ),
-  Check: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-    </svg>
-  ),
-  ArrowLeft: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-    </svg>
-  ),
-  ArrowRight: () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  Arrow: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
     </svg>
   ),
+  Back: () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+    </svg>
+  ),
+  Check: () => (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    </Icon>
+  ),
+  Cover: () => (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7a3 3 0 013-3h10a3 3 0 013 3v10a3 3 0 01-3 3H7a3 3 0 01-3-3V7z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 15l2.6-2.6a1.5 1.5 0 012.1 0L16 15M15 9h.01" />
+    </Icon>
+  ),
+  Text: () => (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h12M8 4v2m2 10c-2.2-1.6-3.8-3.6-4.8-6M18 20l-3-7-3 7M13 17h4" />
+    </Icon>
+  ),
+  Fingerprint: () => (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12a5 5 0 0110 0M4 12a8 8 0 1116 0M9 12c0 4-1.5 6-3 8M12 12c0 4-1 6.5-2.5 8M15 12c0 3 .7 5.5 2.5 8" />
+    </Icon>
+  ),
+  Database: () => (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zM4 7v5c0 1.7 3.6 3 8 3s8-1.3 8-3V7M4 12v5c0 1.7 3.6 3 8 3s8-1.3 8-3v-5" />
+    </Icon>
+  ),
 };
 
-// 步骤指示器
-function StepIndicator({ currentStep }) {
+function StepRail({ currentStep }) {
   const steps = [
-    { id: 1, title: '选择目录', description: '选择输入和输出目录' },
-    { id: 2, title: '确认参数', description: '配置处理参数' },
+    { id: 1, title: '选择目录', note: '输入与输出' },
+    { id: 2, title: '运行配置', note: '线程与规则' },
+    { id: 3, title: '启动前复核', note: '确认写入方式' },
   ];
 
   return (
-    <div className="flex items-center justify-center mb-8">
-      {steps.map((step, index) => (
-        <React.Fragment key={step.id}>
-          <div className="flex flex-col items-center">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${
-              currentStep >= step.id
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-200 text-gray-500'
-            }`}>
-              {currentStep > step.id ? <Icons.Check /> : step.id}
-            </div>
-            <div className="mt-2 text-center">
-              <div className={`text-sm font-medium ${
-                currentStep >= step.id ? 'text-blue-600' : 'text-gray-500'
-              }`}>
-                {step.title}
-              </div>
-              <div className="text-xs text-gray-400 mt-1">{step.description}</div>
-            </div>
+    <div className="workflow-rail">
+      {steps.map((step) => {
+        const active = currentStep === step.id;
+        const done = currentStep > step.id;
+        return (
+          <div
+            key={step.id}
+            className={`workflow-step ${active ? 'is-active' : ''} ${done ? 'is-done' : ''}`}
+          >
+            <span className="workflow-step-dot">{step.id}</span>
+            <span>
+              <span className="workflow-step-title">{step.title}</span>
+              <span className="workflow-step-note">{step.note}</span>
+            </span>
           </div>
-          {index < steps.length - 1 && (
-            <div className={`flex-1 h-1 mx-4 ${
-              currentStep > step.id ? 'bg-blue-600' : 'bg-gray-200'
-            }`} />
-          )}
-        </React.Fragment>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-// 参数开关组件
-function ParameterSwitch({ title, description, checked, onChange }) {
+export { deriveOutputPath };
+
+function withDerivedOutputPath(config) {
+  return {
+    ...config,
+    outputPath: config.outputPath || deriveOutputPath(config.inputPath),
+  };
+}
+
+function sameWorkflowConfig(a, b) {
+  return Object.keys({ ...a, ...b }).every((key) => a[key] === b[key]);
+}
+
+function SwitchRow({ icon: IconComponent, title, description, checked, onChange }) {
   return (
-    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-      <div className="flex-1">
-        <h4 className="font-medium text-neutral-900 mb-1">{title}</h4>
-        <p className="text-sm text-neutral-500">{description}</p>
-      </div>
-      <label className="relative inline-flex items-center cursor-pointer">
+    <label
+      className="panel"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '34px minmax(0, 1fr) auto',
+        alignItems: 'center',
+        gap: 12,
+        padding: 12,
+        boxShadow: 'none',
+        cursor: 'pointer',
+      }}
+    >
+      <span className={checked ? 'chip chip-green' : 'chip'} style={{ width: 34, height: 34, padding: 0, justifyContent: 'center' }}>
+        <IconComponent />
+      </span>
+      <span style={{ minWidth: 0 }}>
+        <span style={{ display: 'block', fontWeight: 850, color: 'var(--ink)' }}>{title}</span>
+        <span style={{ display: 'block', marginTop: 3, color: 'var(--muted)', fontSize: 12 }}>{description}</span>
+      </span>
+      <span
+        style={{
+          width: 44,
+          height: 24,
+          borderRadius: 999,
+          padding: 3,
+          background: checked ? 'var(--groove)' : 'var(--line)',
+          transition: 'background 160ms ease',
+        }}
+      >
         <input
           type="checkbox"
           checked={checked}
           onChange={onChange}
-          className="sr-only peer"
+          className="sr-only"
         />
-        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-      </label>
+        <span
+          style={{
+            display: 'block',
+            width: 18,
+            height: 18,
+            borderRadius: '50%',
+            background: '#fffdf7',
+            transform: checked ? 'translateX(20px)' : 'translateX(0)',
+            transition: 'transform 160ms ease',
+          }}
+        />
+      </span>
+    </label>
+  );
+}
+
+function NumberSetting({ label, description, value, min, max, suffix, onChange, disabled }) {
+  return (
+    <div className="workflow-setting-row">
+      <div>
+        <label className="workflow-setting-label">{label}</label>
+        <p className="workflow-setting-copy">{description}</p>
+      </div>
+      <div className="workflow-number-control">
+        <input
+          type="range"
+          min={min}
+          max={max}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          style={{ width: '100%', accentColor: 'var(--groove)' }}
+        />
+        <div className="workflow-number-input">
+          <input
+            type="number"
+            min={min}
+            max={max}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            disabled={disabled}
+            className="input"
+          />
+          {suffix && <span>{suffix}</span>}
+        </div>
+      </div>
     </div>
   );
 }
 
-export default function Workflow({ bridgeReady }) {
-  const { 
-    workflowStep, 
-    setWorkflowStep, 
-    updateWorkflowConfig, 
+function ReviewLine({ label, children }) {
+  return (
+    <div className="workflow-review-line">
+      <div className="workflow-setting-label">{label}</div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+function PathPicker({ label, value, placeholder, onChange, onPick, disabled }) {
+  return (
+    <div>
+      <label style={{ display: 'block', marginBottom: 8, color: 'var(--ink)', fontWeight: 850 }}>{label}</label>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 8 }}>
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          disabled={disabled}
+          className="input"
+        />
+        <button type="button" onClick={onPick} disabled={disabled} className="btn btn-secondary">
+          <Icons.Folder />
+          选择
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function Workflow() {
+  const {
+    workflowStep,
+    setWorkflowStep,
+    updateWorkflowConfig,
     setCurrentPage,
     resetWorkflow,
     setTaskStatus,
-    addHistory
+    addHistory,
   } = useAppStore();
   const workflowConfig = useWorkflowConfig();
   const { selectDirectory, startProcess } = useQtBridge();
-  const [localConfig, setLocalConfig] = useState(workflowConfig);
+  const [localConfig, setLocalConfig] = useState(() => withDerivedOutputPath(workflowConfig));
   const [isProcessing, setIsProcessing] = useState(false);
+  const [outputPathManuallyChanged, setOutputPathManuallyChanged] = useState(false);
 
-  // 当全局配置改变时更新本地配置
   useEffect(() => {
-    setLocalConfig(workflowConfig);
+    const nextConfig = withDerivedOutputPath(workflowConfig);
+    setLocalConfig((prev) => (sameWorkflowConfig(prev, nextConfig) ? prev : nextConfig));
+    setOutputPathManuallyChanged(false);
   }, [workflowConfig]);
+
+  const handleConfigChange = (key, value) => {
+    setLocalConfig((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleInputPathChange = (value) => {
+    setLocalConfig((prev) => ({
+      ...prev,
+      inputPath: value,
+      outputPath: outputPathManuallyChanged ? prev.outputPath : deriveOutputPath(value),
+    }));
+  };
 
   const handleSelectInput = async () => {
     const path = await selectDirectory(localConfig.inputPath);
     if (path) {
-      const newConfig = { ...localConfig, inputPath: path };
-      setLocalConfig(newConfig);
-      updateWorkflowConfig({ inputPath: path });
+      const nextOutputPath = outputPathManuallyChanged && localConfig.outputPath
+        ? localConfig.outputPath
+        : deriveOutputPath(path);
+      setLocalConfig((prev) => ({
+        ...prev,
+        inputPath: path,
+        outputPath: nextOutputPath,
+      }));
+      updateWorkflowConfig({ inputPath: path, outputPath: nextOutputPath });
     }
   };
 
   const handleSelectOutput = async () => {
     const path = await selectDirectory(localConfig.outputPath);
     if (path) {
-      const newConfig = { ...localConfig, outputPath: path };
-      setLocalConfig(newConfig);
+      setOutputPathManuallyChanged(true);
+      handleConfigChange('outputPath', path);
       updateWorkflowConfig({ outputPath: path });
     }
   };
 
-  const handleNextStep = () => {
-    if (workflowStep === 1 && localConfig.inputPath && localConfig.outputPath) {
-      updateWorkflowConfig(localConfig);
-      setWorkflowStep(2);
-    }
-  };
+  const canContinue = Boolean(localConfig.inputPath && localConfig.outputPath);
 
-  const handlePreviousStep = () => {
-    setWorkflowStep(1);
+  const clampNumber = (value, min, max) => Math.max(min, Math.min(max, parseInt(value, 10) || min));
+  const clampThreads = (value) => clampNumber(value, 1, 16);
+  const clampConfidence = (value) => clampNumber(value, 1, 100);
+  const clampTimeout = (value) => clampNumber(value, 1, 60);
+  const clampQuality = (value) => clampNumber(value, 50, 100);
+
+  const handleNextStep = () => {
+    if (workflowStep === 1 && !canContinue) return;
+    updateWorkflowConfig(localConfig);
+    setWorkflowStep(Math.min(workflowStep + 1, 3));
   };
 
   const handleStartProcessing = async () => {
-    if (!localConfig.inputPath || !localConfig.outputPath) {
-      return;
-    }
-
+    if (!canContinue) return;
     setIsProcessing(true);
     setTaskStatus('processing');
 
     try {
-      // 开始处理
-      await startProcess(localConfig.inputPath, localConfig.outputPath, localConfig.threads);
-      
-      // 记录历史
+      await startProcess(localConfig.inputPath, localConfig.outputPath, localConfig.threads, {
+        enableCoverDownload: localConfig.enableCoverDownload,
+        enableSimplifiedChinese: localConfig.enableSimplifiedChinese,
+        enableDuplicateCheck: localConfig.enableDuplicateCheck,
+        enableFilenameParse: localConfig.enableFilenameParse,
+        enableMetadataScrape: localConfig.enableMetadataScrape,
+        preserveOriginal: localConfig.preserveOriginal,
+        autoOrganize: localConfig.autoOrganize,
+        confidenceThreshold: localConfig.confidenceThreshold,
+        coverTimeout: localConfig.coverTimeout,
+        coverQuality: localConfig.coverQuality,
+      });
+
       addHistory({
         title: '音乐整理任务',
         status: 'processing',
-        count: 0, // 将在处理过程中更新
+        count: 0,
         config: localConfig,
       });
-
-      // 跳转到进度页面
       setCurrentPage('progress');
     } catch (error) {
       console.error('处理失败:', error);
@@ -182,213 +320,223 @@ export default function Workflow({ bridgeReady }) {
 
   const handleCancel = () => {
     resetWorkflow();
-    setCurrentPage('home');
-  };
-
-  // 更新配置参数
-  const handleConfigChange = (key, value) => {
-    const newConfig = { ...localConfig, [key]: value };
-    setLocalConfig(newConfig);
+    setCurrentPage('dashboard');
   };
 
   return (
-    <div className="p-8 animate-fadeIn max-w-4xl mx-auto">
-      {/* 标题 */}
-      <div className="mb-8 text-center">
-        <h1 className="text-2xl font-bold text-neutral-900 mb-2">音乐整理工作流</h1>
-        <p className="text-neutral-500">按照步骤配置，开始整理您的音乐库</p>
-      </div>
+    <div className="page page-narrow animate-fadeIn">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">新建刮削任务</h1>
+          <p className="page-copy">
+            选择输入与输出目录，启用需要的清洗、刮削和整理规则，然后交给 Pipeline 批量处理。
+          </p>
+        </div>
+      </header>
 
-      {/* 步骤指示器 */}
-      <StepIndicator currentStep={workflowStep} />
+      <StepRail currentStep={workflowStep} />
 
-      {/* 步骤内容 */}
-      <div className="bg-white rounded-2xl border border-neutral-100 shadow-sm p-8">
+      <section className="panel workflow-panel">
         {workflowStep === 1 ? (
-          // 第一步：选择目录
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold text-neutral-900 mb-2">选择目录</h3>
-              <p className="text-neutral-500 mb-6">请选择要处理的音乐文件目录和输出目录</p>
+          <div className="workflow-path-stack">
+            <div className="workflow-path-section">
+              <PathPicker
+                label="输入目录"
+                value={localConfig.inputPath}
+                placeholder="选择包含音乐文件的目录"
+                onChange={handleInputPathChange}
+                onPick={handleSelectInput}
+                disabled={isProcessing}
+              />
             </div>
 
-            {/* 输入目录 */}
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-2">
-                输入目录（音乐源文件）
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={localConfig.inputPath}
-                  onChange={(e) => handleConfigChange('inputPath', e.target.value)}
-                  placeholder="选择包含音乐文件的目录"
-                  className="input flex-1"
-                />
-                <button
-                  onClick={handleSelectInput}
-                  disabled={isProcessing}
-                  className="btn btn-secondary whitespace-nowrap flex items-center gap-2"
-                >
-                  <Icons.Folder />
-                  选择
-                </button>
-              </div>
-              <p className="text-sm text-neutral-500 mt-1">
-                支持格式：MP3, FLAC, M4A, APE, OGG, WAV
+            <div className="workflow-path-section">
+              <PathPicker
+                label="输出目录"
+                value={localConfig.outputPath}
+                placeholder="选择整理后的保存位置"
+                onChange={(value) => {
+                  setOutputPathManuallyChanged(true);
+                  handleConfigChange('outputPath', value);
+                }}
+                onPick={handleSelectOutput}
+                disabled={isProcessing}
+              />
+              <p style={{ color: 'var(--muted)', lineHeight: 1.7, margin: '14px 0 0' }}>
+                默认使用输入目录的同级目录，并在目录名后追加 _OUTPUT。输出文件会按「歌手/专辑」结构整理。
               </p>
-            </div>
-
-            {/* 输出目录 */}
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-2">
-                输出目录（整理后的文件）
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={localConfig.outputPath}
-                  onChange={(e) => handleConfigChange('outputPath', e.target.value)}
-                  placeholder="选择输出目录"
-                  className="input flex-1"
-                />
-                <button
-                  onClick={handleSelectOutput}
-                  disabled={isProcessing}
-                  className="btn btn-secondary whitespace-nowrap flex items-center gap-2"
-                >
-                  <Icons.Folder />
-                  选择
-                </button>
-              </div>
-              <p className="text-sm text-neutral-500 mt-1">
-                整理后的文件将按「歌手/专辑」结构存放
-              </p>
-            </div>
-
-            {/* 线程数 */}
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-2">
-                处理线程数
-              </label>
-              <div className="flex items-center gap-4">
-                <input
-                  type="range"
-                  min="1"
-                  max="16"
-                  value={localConfig.threads}
-                  onChange={(e) => handleConfigChange('threads', parseInt(e.target.value))}
-                  disabled={isProcessing}
-                  className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                />
-                <span className="text-sm font-medium text-neutral-700 min-w-[3rem]">
-                  {localConfig.threads}
-                </span>
-              </div>
-              <div className="flex justify-between text-xs text-neutral-400 mt-1">
-                <span>1</span>
-                <span>8</span>
-                <span>16</span>
-              </div>
             </div>
           </div>
-        ) : (
-          // 第二步：确认参数
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold text-neutral-900 mb-2">确认参数</h3>
-              <p className="text-neutral-500 mb-6">确认处理参数，开始整理您的音乐库</p>
-            </div>
-
-            {/* 目录预览 */}
-            <div className="bg-gray-50 rounded-xl p-4">
-              <h4 className="font-medium text-neutral-900 mb-3">目录设置</h4>
-              <div className="space-y-2 text-sm">
-                <div>
-                  <span className="text-neutral-500">输入目录：</span>
-                  <span className="text-neutral-900 ml-2">{localConfig.inputPath}</span>
-                </div>
-                <div>
-                  <span className="text-neutral-500">输出目录：</span>
-                  <span className="text-neutral-900 ml-2">{localConfig.outputPath}</span>
-                </div>
-                <div>
-                  <span className="text-neutral-500">处理线程：</span>
-                  <span className="text-neutral-900 ml-2">{localConfig.threads} 个</span>
-                </div>
+        ) : workflowStep === 2 ? (
+          <div className="workflow-config-stack">
+            <section className="workflow-config-section">
+              <h2 className="panel-title">处理规则</h2>
+              <div className="workflow-switch-stack">
+                <SwitchRow
+                  icon={Icons.Cover}
+                  title="下载专辑封面"
+                  description="写入可用的专辑图像"
+                  checked={localConfig.enableCoverDownload}
+                  onChange={(e) => handleConfigChange('enableCoverDownload', e.target.checked)}
+                />
+                <SwitchRow
+                  icon={Icons.Text}
+                  title="繁简转换"
+                  description="清理台湾/香港繁体歌词"
+                  checked={localConfig.enableSimplifiedChinese}
+                  onChange={(e) => handleConfigChange('enableSimplifiedChinese', e.target.checked)}
+                />
+                <SwitchRow
+                  icon={Icons.Fingerprint}
+                  title="重复检测"
+                  description="跳过已处理的相同文件"
+                  checked={localConfig.enableDuplicateCheck}
+                  onChange={(e) => handleConfigChange('enableDuplicateCheck', e.target.checked)}
+                />
+                <SwitchRow
+                  icon={Icons.Text}
+                  title="文件名解析"
+                  description="标签为空时从文件名补出艺人和标题"
+                  checked={localConfig.enableFilenameParse}
+                  onChange={(e) => handleConfigChange('enableFilenameParse', e.target.checked)}
+                />
+                <SwitchRow
+                  icon={Icons.Database}
+                  title="元数据刮削"
+                  description="从 MusicBrainz 补全标签"
+                  checked={localConfig.enableMetadataScrape}
+                  onChange={(e) => handleConfigChange('enableMetadataScrape', e.target.checked)}
+                />
+                <SwitchRow
+                  icon={Icons.Folder}
+                  title="保留原文件"
+                  description="输出到新目录，原始文件继续作为备份"
+                  checked={localConfig.preserveOriginal}
+                  onChange={(e) => handleConfigChange('preserveOriginal', e.target.checked)}
+                />
+                <SwitchRow
+                  icon={Icons.Database}
+                  title="按歌手/专辑整理"
+                  description="输出目录使用统一的音乐库层级"
+                  checked={localConfig.autoOrganize}
+                  onChange={(e) => handleConfigChange('autoOrganize', e.target.checked)}
+                />
               </div>
-            </div>
+            </section>
 
-            {/* 处理选项 */}
-            <div className="space-y-4">
-              <ParameterSwitch
-                title="下载专辑封面"
-                description="自动从网络下载高清专辑封面并嵌入到音乐文件中"
-                checked={localConfig.enableCoverDownload}
-                onChange={(e) => handleConfigChange('enableCoverDownload', e.target.checked)}
+            <section className="workflow-config-section">
+              <h2 className="panel-title">刮削参数</h2>
+              <NumberSetting
+                label="处理线程数"
+                description="网络共享目录建议使用较低线程数，本地 SSD 可适当提高。"
+                value={localConfig.threads}
+                min="1"
+                max="16"
+                suffix="线程"
+                onChange={(value) => handleConfigChange('threads', clampThreads(value))}
+                disabled={isProcessing}
               />
-              <ParameterSwitch
-                title="繁简转换"
-                description="将台湾/香港繁体歌词转换为大陆简体"
-                checked={localConfig.enableSimplifiedChinese}
-                onChange={(e) => handleConfigChange('enableSimplifiedChinese', e.target.checked)}
+              <NumberSetting
+                label="匹配可信度阈值"
+                description="低于阈值的候选元数据不会作为高可信结果使用。"
+                value={localConfig.confidenceThreshold}
+                min="1"
+                max="100"
+                suffix="%"
+                onChange={(value) => handleConfigChange('confidenceThreshold', clampConfidence(value))}
+                disabled={isProcessing}
               />
-              <ParameterSwitch
-                title="重复检测"
-                description="跳过已处理的重复文件，避免重复整理"
-                checked={localConfig.enableDuplicateCheck}
-                onChange={(e) => handleConfigChange('enableDuplicateCheck', e.target.checked)}
+              <NumberSetting
+                label="封面下载超时"
+                description="封面服务响应过慢时自动跳过，避免拖慢整批任务。"
+                value={localConfig.coverTimeout}
+                min="1"
+                max="60"
+                suffix="秒"
+                onChange={(value) => handleConfigChange('coverTimeout', clampTimeout(value))}
+                disabled={isProcessing}
               />
-              <ParameterSwitch
-                title="元数据刮削"
-                description="从 MusicBrainz 数据库获取最准确的歌曲信息"
-                checked={localConfig.enableMetadataScrape}
-                onChange={(e) => handleConfigChange('enableMetadataScrape', e.target.checked)}
+              <NumberSetting
+                label="封面写入质量"
+                description="控制下载封面转为 JPEG 后的压缩质量。"
+                value={localConfig.coverQuality}
+                min="50"
+                max="100"
+                suffix="%"
+                onChange={(value) => handleConfigChange('coverQuality', clampQuality(value))}
+                disabled={isProcessing}
               />
-            </div>
+            </section>
+          </div>
+        ) : (
+          <div className="workflow-config-stack">
+            <section className="workflow-config-section">
+              <h2 className="panel-title">启动前复核</h2>
+              <ReviewLine label="输入目录">
+                <div className="mono" style={{ overflowWrap: 'anywhere' }}>{localConfig.inputPath}</div>
+              </ReviewLine>
+              <ReviewLine label="输出目录">
+                <div className="mono" style={{ overflowWrap: 'anywhere' }}>{localConfig.outputPath}</div>
+              </ReviewLine>
+              <ReviewLine label="启用规则">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {localConfig.enableCoverDownload && <span className="chip chip-green">封面</span>}
+                  {localConfig.enableSimplifiedChinese && <span className="chip chip-green">繁简</span>}
+                  {localConfig.enableDuplicateCheck && <span className="chip chip-green">查重</span>}
+                  {localConfig.enableFilenameParse && <span className="chip chip-green">文件名解析</span>}
+                  {localConfig.enableMetadataScrape && <span className="chip chip-green">MusicBrainz</span>}
+                  {localConfig.preserveOriginal && <span className="chip chip-green">保留原文件</span>}
+                  {localConfig.autoOrganize && <span className="chip chip-green">整理目录</span>}
+                </div>
+              </ReviewLine>
+              <ReviewLine label="执行参数">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  <span className="chip chip-amber">{localConfig.threads} 线程</span>
+                  <span className="chip chip-amber">可信度 {localConfig.confidenceThreshold}%</span>
+                  <span className="chip chip-amber">封面超时 {localConfig.coverTimeout}s</span>
+                  <span className="chip chip-amber">封面质量 {localConfig.coverQuality}%</span>
+                </div>
+              </ReviewLine>
+            </section>
           </div>
         )}
 
-        {/* 操作按钮 */}
-        <div className="flex justify-between pt-6 border-t border-neutral-100">
-          <div>
+        <div className="workflow-actions">
+          <div className="workflow-actions-group">
             {workflowStep > 1 && (
-              <button
-                onClick={handlePreviousStep}
-                className="btn btn-secondary flex items-center gap-2"
-              >
-                <Icons.ArrowLeft />
+              <button type="button" onClick={() => setWorkflowStep(Math.max(1, workflowStep - 1))} className="btn btn-secondary">
+                <Icons.Back />
                 上一步
               </button>
             )}
           </div>
-          <div className="flex gap-3">
-            <button
-              onClick={handleCancel}
-              className="btn bg-gray-500 hover:bg-gray-600 text-white"
-            >
+          <div className="workflow-actions-group">
+            <button type="button" onClick={handleCancel} className="btn btn-secondary">
               取消
             </button>
-            {workflowStep === 1 ? (
+            {workflowStep < 3 ? (
               <button
+                type="button"
                 onClick={handleNextStep}
-                disabled={!localConfig.inputPath || !localConfig.outputPath || isProcessing}
-                className="btn btn-primary flex items-center gap-2"
+                disabled={(workflowStep === 1 && !canContinue) || isProcessing}
+                className="btn btn-primary"
               >
-                下一步 <Icons.ArrowRight />
+                {workflowStep === 1 ? '继续配置' : '继续复核'}
+                <Icons.Arrow />
               </button>
             ) : (
               <button
+                type="button"
                 onClick={handleStartProcessing}
                 disabled={isProcessing}
-                className="btn btn-primary flex items-center gap-2"
+                className="btn btn-primary"
               >
                 {isProcessing ? '准备中...' : '开始处理'}
               </button>
             )}
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

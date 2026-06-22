@@ -58,9 +58,25 @@
 
 前往 [Releases 页面](https://github.com/kalyterai/OpenMusicTag/releases) 下载适合您操作系统的最新版本：
 
+- **macOS** (Apple Silicon): 下载 `OpenMusicTag-mac.zip`
 - **Windows**: 下载 `.exe` 或便携版 `.zip`
-- **macOS**: 下载 `.zip` 后解压，移动到应用程序目录下 (支持 Apple Silicon & Intel)
 - **Linux**: 提供 AppImage, deb 或 rpm 包
+
+#### 🍎 macOS 首次打开（重要）
+
+本应用尚未做 Apple 公证，从网上下载后 macOS 会拦截（提示「已损坏」或「无法验证开发者」）。
+这是正常现象，应用本身是安全的，按下面任一方式放行即可，**只需一次**：
+
+1. 解压 `OpenMusicTag-mac.zip`，把 `OpenMusicTag.app` 拖到「应用程序」文件夹；
+2. **双击同目录下的「首次打开.command」** —— 它会自动解除下载隔离并启动应用。
+   （若该脚本本身也被拦截，右键点它 → 打开。）
+
+> 喜欢用命令行的话，等效于在终端执行一次：
+> ```bash
+> xattr -dr com.apple.quarantine /Applications/OpenMusicTag.app
+> ```
+
+以后直接双击 `OpenMusicTag.app` 即可，无需再重复上述操作。
 
 ### 2. 基础使用
 
@@ -102,7 +118,7 @@
 
 ## 📄 许可证 (License)
 
-本项目基于 [MIT License](LICENSE) 协议开源。请自由使用、修改和分发，但请保留原作者的版权声明。
+本项目基于 [Apache License 2.0](LICENSE) 协议开源。请自由使用、修改和分发，但请保留原作者的版权与许可声明。
 
 ---
 <div align="center">

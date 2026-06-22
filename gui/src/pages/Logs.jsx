@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useLogs } from '../stores/appStore';
+import useAppStore, { useLogs } from '../stores/appStore';
 
 export default function Logs() {
   const logs = useLogs();
@@ -28,7 +28,7 @@ export default function Logs() {
 
   const handleClear = () => {
     if (window.confirm('确定清空所有日志吗？')) {
-      useAppStore.setState({ logs: [] });
+      useAppStore.getState().clearLogs();
     }
   };
 

@@ -55,6 +55,7 @@ def build_macos():
         '--noconfirm',
         '--clean',
         '--onedir',
+        f'--paths={PROJECT_ROOT}',
         f'--add-data={GUI_DIR / "dist"}:dist',
         f'--add-data={GUI_DIR / "logo.png"}:.',
         f'--icon={GUI_DIR / "logo.png"}',
@@ -67,7 +68,7 @@ def build_macos():
         '--hidden-import=musicbrainzngs',
         '--hidden-import=requests',
         '--hidden-import=PIL',
-        str(GUI_DIR / 'launcher.py')
+        str(GUI_DIR / 'main.py')
     ]
     
     subprocess.run(cmd, check=True)
@@ -92,6 +93,7 @@ def build_windows():
         '--noconfirm',
         '--clean',
         '--onedir',
+        f'--paths={PROJECT_ROOT}',
         f'--add-data={GUI_DIR / "dist"};dist',
         f'--add-data={GUI_DIR / "logo.png"};.',
         f'--icon={GUI_DIR / "logo.png"}',
@@ -103,7 +105,7 @@ def build_windows():
         '--hidden-import=musicbrainzngs',
         '--hidden-import=requests',
         '--hidden-import=PIL',
-        str(GUI_DIR / 'launcher.py')
+        str(GUI_DIR / 'main.py')
     ]
     
     subprocess.run(cmd, check=True)
@@ -126,6 +128,7 @@ def build_linux():
         '--noconfirm',
         '--clean',
         '--onedir',
+        f'--paths={PROJECT_ROOT}',
         f'--add-data={GUI_DIR / "dist"}:dist',
         f'--add-data={GUI_DIR / "logo.png"}:.',
         f'--icon={GUI_DIR / "logo.png"}',
@@ -137,7 +140,7 @@ def build_linux():
         '--hidden-import=musicbrainzngs',
         '--hidden-import=requests',
         '--hidden-import=PIL',
-        str(GUI_DIR / 'launcher.py')
+        str(GUI_DIR / 'main.py')
     ]
     
     subprocess.run(cmd, check=True)

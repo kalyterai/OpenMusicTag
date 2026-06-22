@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- QtWebEngine 内置 Chromium/V8，hardened runtime 下需要 JIT 与可写可执行内存 -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    <!-- PyInstaller 打包的众多 dylib 并非同一 Team 签名，需关闭库验证否则加载失败 -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+    <!-- Python 运行期会用到的动态特性 -->
+    <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+    <true/>
+    <!-- 允许访问用户选择的音乐目录（含网络共享卷） -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+    <key>com.apple.security.network.client</key>
+    <true/>
+</dict>
+</plist>

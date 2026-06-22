@@ -77,7 +77,7 @@ pyinstaller --name=OpenMusicTag \
   --hidden-import=musicbrainzngs \
   --hidden-import=requests \
   --hidden-import=PIL \
-  gui/launcher.py
+  gui/main.py
 ```
 
 #### Windows
@@ -115,26 +115,45 @@ pyinstaller --name=OpenMusicTag \
 - **Windows**: `dist/OpenMusicTag/OpenMusicTag.exe` (可执行文件)
 - **Linux**: `dist/OpenMusicTag/OpenMusicTag` (可执行文件)
 
-## 创建安装包（可选）
+## macOS 签名 + 公证 + DMG（分发必做）
 
-### macOS
-使用 create-dmg 创建DMG安装包：
+> 不签名 / 不公证的 .app 发给别人，会被 Gatekeeper 拦成「无法打开，因为无法验证开发者」。
+> 一键脚本：`scripts/macos_release.sh`，完成「签名 → 打 DMG → 公证 → staple」全流程。
+
+### 前置：一次性准备
+1. 加入 Apple Developer Program（$99/年），在 Xcode 或开发者后台生成
+   **Developer ID Application** 证书并安装到登录钥匙串。
+   核对：`security find-identity -v -p codesigning`（应能看到该证书）。
+2. 生成 App 专用密码（appleid.apple.com → 登录与安全 → App 专用密码）。
+3. 把公证凭据存进钥匙串（只需一次）：
+   ```bash
+   xcrun notarytool store-credentials omt-notary \
+     --apple-id you@example.com --team-id TEAMID --password <App 专用密码>
+   ```
+4. 安装 create-dmg（可选，没有则脚本自动回退 hdiutil）：`brew install create-dmg`
+
+### 发布
 ```bash
-brew install create-dmg
-create-dmg \
-  --volname "OpenMusicTag" \
-  --window-pos 200 120 \
-  --window-size 800 400 \
-  --icon-size 100 \
-  --icon "OpenMusicTag.app" 200 190 \
-  --hide-extension "OpenMusicTag.app" \
-  --app-drop-link 600 185 \
-  OpenMusicTag.dmg \
-  dist/OpenMusicTag.app
+export DEV_ID_APP="Developer ID Application: 你的名字 (TEAMID)"
+export NOTARY_PROFILE="omt-notary"
+bash scripts/macos_release.sh           # 构建 + 签名 + DMG + 公证 + staple
 ```
+产物：`dist/OpenMusicTag.dmg`（已公证，任何 Mac 双击即开）。
+
+脚本要点：
+- **由内向外逐个签名**所有 `.dylib`/`.so`、嵌套的 `QtWebEngineProcess.app`，最后才签外层 `.app`——
+  PyInstaller 自带的 `codesign_identity` 只签主程序，对 QtWebEngine 不够。
+- 启用 **hardened runtime + `gui/entitlements.plist`**（公证强制要求；QtWebEngine 需 JIT/库验证豁免）。
+- 常用开关：`--no-build`（对已有 .app 操作）、`--no-notarize`（只签名打包不公证）。
+
+### 没有开发者账号时
+脚本检测不到 `DEV_ID_APP` 会自动降级为 **ad-hoc 签名**：本机能跑，但发给别人需让对方
+「右键 → 打开」绕过 Gatekeeper，且无法公证。正式分发请走上面的账号流程。
+
+## 其他平台安装包（可选）
 
 ### Windows
-使用 Inno Setup 或 NSIS 创建安装程序。
+使用 Inno Setup 或 NSIS 创建安装程序（建议另行做代码签名，否则触发 SmartScreen）。
 
 ### Linux
 创建DEB/RPM包或AppImage。
