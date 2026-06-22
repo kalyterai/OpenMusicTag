@@ -18,8 +18,8 @@
 
 ```
 OpenMusicTag/
-├── organizer.py               # 主程序入口（CLI）- 支持命令行参数
 ├── core/                      # 核心引擎包（import 形式：from core.xxx import ...）
+│                              # CLI 入口：python -m core.pipeline
 │   ├── __init__.py
 │   ├── pipeline.py            # 管道主类 - 批量处理调度
 │   ├── base.py                # PipelineStage 抽象基类（含文本处理逻辑）
@@ -55,31 +55,23 @@ pip install opencc mutagen musicbrainzngs requests Pillow
 
 ## 使用方法
 
-### 方式一：命令行参数（推荐）
-
-```bash
-python organizer.py <输入目录> [-o <输出目录>] [-t <线程数>]
-
-# 示例
-python organizer.py /path/to/music -o /path/to/music_organized -t 4
-```
-
-### 方式二：作为模块运行
-
-`organizer.py` 只是薄壳，等价于直接调用核心包：
+### 命令行运行
 
 ```bash
 python -m core.pipeline <输入目录> [-o <输出目录>] [-t <线程数>]
+
+# 示例
+python -m core.pipeline /path/to/music -o /path/to/music_organized -t 4
 ```
 
 ### 处理本地或网络共享音乐目录
 
 ```bash
 # 本地目录示例
-python organizer.py ~/Music -o ~/Music/organized
+python -m core.pipeline ~/Music -o ~/Music/organized
 
 # 网络共享目录示例
-python organizer.py /Volumes/shared/music -o /Volumes/shared/music_organized
+python -m core.pipeline /Volumes/shared/music -o /Volumes/shared/music_organized
 ```
 
 ## Pipeline 执行流程

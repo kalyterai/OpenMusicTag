@@ -13,7 +13,7 @@ block_cipher = None
 
 # 数据文件
 a = Analysis(
-    [str(gui_path / 'launcher.py')],
+    [str(gui_path / 'main.py')],
     pathex=[str(project_path), str(gui_path)],
     binaries=[],
     datas=[

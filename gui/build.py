@@ -68,7 +68,7 @@ def build_macos():
         '--hidden-import=musicbrainzngs',
         '--hidden-import=requests',
         '--hidden-import=PIL',
-        str(GUI_DIR / 'launcher.py')
+        str(GUI_DIR / 'main.py')
     ]
     
     subprocess.run(cmd, check=True)
@@ -105,7 +105,7 @@ def build_windows():
         '--hidden-import=musicbrainzngs',
         '--hidden-import=requests',
         '--hidden-import=PIL',
-        str(GUI_DIR / 'launcher.py')
+        str(GUI_DIR / 'main.py')
     ]
     
     subprocess.run(cmd, check=True)
@@ -140,7 +140,7 @@ def build_linux():
         '--hidden-import=musicbrainzngs',
         '--hidden-import=requests',
         '--hidden-import=PIL',
-        str(GUI_DIR / 'launcher.py')
+        str(GUI_DIR / 'main.py')
     ]
     
     subprocess.run(cmd, check=True)

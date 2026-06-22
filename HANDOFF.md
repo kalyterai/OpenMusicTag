@@ -10,9 +10,9 @@
 桌面端音乐刮削/整理工具。
 
 - **后端**：Python 管道（`core/` 包）。`PipelineStage` / `PipelineRegistry` / `PipelineContext` / `AudioFile` / `MusicOrganizerPipeline`，按配置动态组装多个 Stage（加载→提取标签→清洗→标准化歌手→查重→刮削元数据→合并→计算路径→复制→封面→写标签→清理）。
-- **GUI**：PyQt6 + QtWebEngine + QWebChannel，桥接到 React 前端（Vite + zustand + Tailwind）。入口 `gui/launcher.py` → `gui/main.py` → `gui/bridge.py`（`Bridge`/`MainWindow`/`ProcessingWorker`）。
+- **GUI**：PyQt6 + QtWebEngine + QWebChannel，桥接到 React 前端（Vite + zustand + Tailwind）。入口 `gui/main.py` → `gui/bridge.py`（`Bridge`/`MainWindow`/`ProcessingWorker`），经 `gui/run.sh` 启动。
 - **持久化**：标准库 `sqlite3`，封装在 `core/storage.py`。
-- **CLI**：`organizer.py` 是 `core.pipeline.main` 的瘦包装。
+- **CLI**：`python -m core.pipeline`（`core.pipeline.main`）。
 
 目录关键文件：
 ```
@@ -38,7 +38,7 @@ gui/src/**/*.test.jsx      # Vitest
    - 用 `dict` → C++ `PyQt_PyObject` → QWebChannel 无法序列化 → 运行时 SIGABRT。
    - 回归测试守门：`tests/test_bridge.py::WebChannelTypeSafetyTests`。
 3. **不要再用 pyobjc 操作 NSWindow 做自定义标题栏**：`objc.objc_object(c_void_p=int(self.winId()))` 在本机（PyQt6 / 系统 Python 3.9 / macOS 26）**SIGSEGV**，`try/except` 拦不住。已回退保留原生标题栏。若要重做无边框风格，必须**和用户一起逐版本跑**，且延迟执行（QTimer.singleShot）+ 校验指针，或用成熟库。
-4. **本环境无法运行/看到 GUI**（WebEngine 离屏不执行页面 JS；无 `timeout` 命令）。前端改动只能写、不能验证 → 任何 GUI 行为需让用户 `python3 gui/launcher.py` 跑后反馈，迭代式推进。
+4. **本环境无法运行/看到 GUI**（WebEngine 离屏不执行页面 JS；无 `timeout` 命令）。前端改动只能写、不能验证 → 任何 GUI 行为需让用户 `bash gui/run.sh`（或 `python3 gui/main.py`）跑后反馈，迭代式推进。
 5. **SQLite 限制**：无 `列 COMMENT '...'` 语法（列说明用 `--` 注释）；无 `ON UPDATE CURRENT_TIMESTAMP`（用 TRIGGER）；`ALTER ADD COLUMN` 不允许函数默认值（新列先 NULL 再回填）。
 6. **测试运行**（无 pytest）：
    ```
@@ -120,6 +120,6 @@ gui/src/**/*.test.jsx      # Vitest
 ---
 
 ## 6. 给用户的待确认项（交接时一并问）
-1. `python3 gui/launcher.py` 能否正常启动（前两次崩溃：dict→QVariantMap、pyobjc 段错误，均已修）。
+1. `bash gui/run.sh`（或 `python3 gui/main.py`）能否正常启动（前两次崩溃：dict→QVariantMap、pyobjc 段错误，均已修）。
 2. 设置页是否已能下滑。
 确认后再开 A/B 的前端。

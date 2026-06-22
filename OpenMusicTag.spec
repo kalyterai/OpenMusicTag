@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['/Users/xiaozhuzhu/code/python/OpenMusicTag/gui/launcher.py'],
+    ['/Users/xiaozhuzhu/code/python/OpenMusicTag/gui/main.py'],
     pathex=['/Users/xiaozhuzhu/code/python/OpenMusicTag', '/Users/xiaozhuzhu/code/python/OpenMusicTag/gui'],
     binaries=[],
     datas=[('/Users/xiaozhuzhu/code/python/OpenMusicTag/gui/dist', 'dist'), ('/Users/xiaozhuzhu/code/python/OpenMusicTag/gui/logo.png', '.')],

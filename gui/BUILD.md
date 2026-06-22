@@ -77,7 +77,7 @@ pyinstaller --name=OpenMusicTag \
   --hidden-import=musicbrainzngs \
   --hidden-import=requests \
   --hidden-import=PIL \
-  gui/launcher.py
+  gui/main.py
 ```
 
 #### Windows
