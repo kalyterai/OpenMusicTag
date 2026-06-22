@@ -63,6 +63,56 @@ class StorageTaskSongTests(unittest.TestCase):
         self.assertEqual(stats["total_tasks"], 2)
         self.assertEqual(stats["pending_tasks"], 1)
 
+    def test_dashboard_stats_excludes_deleted_tasks(self):
+        keep = self.storage.create_task("/in1", "/out")
+        self.storage.add_song(keep, "success", size_bytes=1000)
+        self.storage.finish_task(keep, "completed", success=1)
+
+        drop = self.storage.create_task("/in2", "/out")
+        self.storage.add_song(drop, "success", size_bytes=9999)
+        self.storage.add_song(drop, "failed")
+        self.storage.finish_task(drop, "completed", success=1, failed=1)
+
+        self.storage.delete_task(drop)
+
+        stats = self.storage.get_dashboard_stats()
+        # 已删除任务的单曲与本身都不计入控制台
+        self.assertEqual(stats["total_songs"], 1)
+        self.assertEqual(stats["failed"], 0)
+        self.assertEqual(stats["total_bytes"], 1000)
+        self.assertEqual(stats["total_tasks"], 1)
+        # 找回后重新计入
+        self.assertTrue(self.storage.restore_task(drop))
+        restored = self.storage.get_dashboard_stats()
+        self.assertEqual(restored["total_songs"], 2)
+        self.assertEqual(restored["failed"], 1)
+        self.assertEqual(restored["total_tasks"], 2)
+
+    def test_daily_activity_excludes_deleted_tasks(self):
+        keep = self.storage.create_task("/in1", "/out")
+        self.storage.add_song(keep, "success")
+        drop = self.storage.create_task("/in2", "/out")
+        self.storage.add_song(drop, "success")
+        self.storage.add_song(drop, "success")
+        self.storage.delete_task(drop)
+
+        today = datetime.now().date().isoformat()
+        activity = self.storage.get_daily_activity(days=7)
+        today_item = next(i for i in activity if i["date"] == today)
+        self.assertEqual(today_item["count"], 1)
+
+    def test_restore_task_brings_back_into_list(self):
+        drop = self.storage.create_task("/in/drop", "/out")
+        self.storage.delete_task(drop)
+        self.assertNotIn(drop, [t["id"] for t in self.storage.get_recent_tasks(10)])
+        self.assertIn(drop, [t["id"] for t in self.storage.list_deleted_tasks()])
+
+        self.assertTrue(self.storage.restore_task(drop))
+        self.assertIn(drop, [t["id"] for t in self.storage.get_recent_tasks(10)])
+        self.assertNotIn(drop, [t["id"] for t in self.storage.list_deleted_tasks()])
+        # 重复找回返回 False（已不在回收站）
+        self.assertFalse(self.storage.restore_task(drop))
+
     def test_dashboard_stats_empty_db(self):
         stats = self.storage.get_dashboard_stats()
         self.assertEqual(stats["total_songs"], 0)

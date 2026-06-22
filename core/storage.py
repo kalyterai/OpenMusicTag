@@ -482,6 +482,25 @@ class Storage:
             self._conn.commit()
             return cur.rowcount > 0
 
+    def restore_task(self, task_id: int) -> bool:
+        """撤销软删除：清空 gmt_deleted，任务重新出现在列表与控制台统计中。"""
+        with self._lock:
+            cur = self._conn.execute(
+                "UPDATE tasks SET gmt_deleted=NULL WHERE id=? AND gmt_deleted IS NOT NULL",
+                (int(task_id),),
+            )
+            self._conn.commit()
+            return cur.rowcount > 0
+
+    def list_deleted_tasks(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """已软删除（回收站）任务列表，按删除时间倒序，供「找回」入口使用。"""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM tasks WHERE gmt_deleted IS NOT NULL"
+                " ORDER BY gmt_deleted DESC LIMIT ?", (int(limit),)
+            ).fetchall()
+        return [self._row_to_task(r) for r in rows]
+
     def get_task(self, task_id: int) -> Optional[Dict[str, Any]]:
         with self._lock:
             row = self._conn.execute(
@@ -578,6 +597,8 @@ class Storage:
         return self._row_to_song(row) if row else None
 
     def get_dashboard_stats(self) -> Dict[str, Any]:
+        # 控制台只统计「未删除」任务：已软删除任务的单曲不计入任何指标。
+        # 用正向 IN 子查询（NOT IN 遇 NULL 会整体失效），与列表口径一致。
         with self._lock:
             song_row = self._conn.execute(
                 "SELECT"
@@ -586,12 +607,13 @@ class Storage:
                 " COALESCE(SUM(CASE WHEN status='success' THEN bytes ELSE 0 END), 0)"
                 " AS total_bytes"
                 " FROM songs"
+                " WHERE task_id IN (SELECT id FROM tasks WHERE gmt_deleted IS NULL)"
             ).fetchone()
             task_row = self._conn.execute(
                 "SELECT"
                 " COUNT(*) AS total_tasks,"
                 " SUM(CASE WHEN status='running' THEN 1 ELSE 0 END) AS pending_tasks"
-                " FROM tasks"
+                " FROM tasks WHERE gmt_deleted IS NULL"
             ).fetchone()
 
         success = song_row["success"] or 0
@@ -619,6 +641,7 @@ class Storage:
             rows = self._conn.execute(
                 "SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS count"
                 " FROM songs WHERE status='success' AND substr(created_at, 1, 10) >= ?"
+                " AND task_id IN (SELECT id FROM tasks WHERE gmt_deleted IS NULL)"
                 " GROUP BY day",
                 (start.isoformat(),),
             ).fetchall()
