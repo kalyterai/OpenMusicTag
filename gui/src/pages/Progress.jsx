@@ -50,6 +50,33 @@ const Icons = {
 
 const normalizePath = (value) => String(value || '').replace(/\\/g, '/').replace(/\/+$/, '');
 
+// 路径相对根目录：去掉输出根目录前缀，只保留根目录内部的子路径
+const relativeToRoot = (fullPath, root) => {
+  if (!fullPath) return '';
+  if (!root) return fullPath;
+  const f = normalizePath(fullPath);
+  const r = normalizePath(root);
+  if (f === r) return '';
+  if (f.startsWith(`${r}/`)) return f.slice(r.length + 1);
+  return fullPath;
+};
+
+// 耗时：结束时间 - 开始时间；无结束时间返回 '-'
+const formatDuration = (startIso, endIso) => {
+  if (!startIso || !endIso) return '-';
+  const start = Date.parse(startIso);
+  const end = Date.parse(endIso);
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return '-';
+  let seconds = Math.round((end - start) / 1000);
+  if (seconds < 60) return `${seconds}秒`;
+  const minutes = Math.floor(seconds / 60);
+  seconds %= 60;
+  if (minutes < 60) return seconds ? `${minutes}分${seconds}秒` : `${minutes}分`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins ? `${hours}时${mins}分` : `${hours}时`;
+};
+
 const TASK_STATUS_CN = {
   completed: '已完成',
   running: '进行中',
@@ -183,12 +210,13 @@ function InfoTip({ text }) {
   );
 }
 
-function SongInspectorPaths({ song }) {
+function SongInspectorPaths({ song, outputRoot }) {
   if (!song) return null;
+  const outInner = relativeToRoot(song.output_path, outputRoot) || song.output_path;
   return (
     <div className="task-song-paths">
       <div className="task-song-path"><span>来源目录</span><code className="mono truncate-1" title={song.source_path}>{song.source_path || '-'}</code></div>
-      <div className="task-song-path"><span>输出目录</span><code className="mono truncate-1" title={song.output_path}>{song.output_path || '-'}</code></div>
+      <div className="task-song-path"><span>输出目录</span><code className="mono truncate-1" title={outInner}>{outInner || '-'}</code></div>
     </div>
   );
 }
@@ -206,11 +234,13 @@ export default function Progress() {
     resetTask,
     resetWorkflow,
     addHistory,
+    navNonce,
   } = useAppStore();
   const { cancelTask, callQt, getMusicFileDetails } = useQtBridge();
   const [isPaused, setIsPaused] = useState(false);
   const [tasks, setTasks] = useState([]);
   const [tasksReady, setTasksReady] = useState(false);
+  const [page, setPage] = useState(1); // 任务列表分页，默认第 1 页
   const [selectedTask, setSelectedTask] = useState(null);
   const [taskSongs, setTaskSongs] = useState([]);
   const [taskLog, setTaskLog] = useState([]);
@@ -279,6 +309,42 @@ export default function Progress() {
     })();
     return () => { active = false; };
   }, [callQt, taskStatus]);
+
+  // 菜单导航时回到任务列表「第一页」（即使已停留在任务详情菜单）
+  const navMountRef = useRef(false);
+  useEffect(() => {
+    if (!navMountRef.current) { navMountRef.current = true; return; }
+    setSelectedTask(null);
+    setPage(1);
+  }, [navNonce]);
+
+  // 进行中任务：每 3 秒轮询刷新状态/统计/歌曲/日志与输出目录
+  const [refreshing, setRefreshing] = useState(false);
+  useEffect(() => {
+    if (!selectedTask || selectedTask.status !== 'running') return undefined;
+    const id = selectedTask.id;
+    let active = true;
+    const tick = async () => {
+      if (!active) return;
+      setRefreshing(true);
+      try {
+        const fresh = await callQt('get_task', id);
+        if (active && fresh && fresh.id) {
+          setSelectedTask((prev) => (prev && prev.id === id ? { ...prev, ...fresh } : prev));
+        }
+        const songs = await callQt('get_task_songs', id, 500, 0);
+        if (active) setTaskSongs(songs || []);
+        const records = await callQt('get_task_log', id, 2000);
+        if (active) setTaskLog(records || []);
+      } catch (e) {
+        // 轮询失败忽略，等下一次
+      } finally {
+        if (active) setRefreshing(false);
+      }
+    };
+    const timer = setInterval(tick, 3000);
+    return () => { active = false; clearInterval(timer); };
+  }, [callQt, selectedTask?.id, selectedTask?.status]);
 
   const browseOutput = async (path) => {
     if (!path) return false;
@@ -419,6 +485,10 @@ export default function Progress() {
   };
 
   if (!selectedTask) {
+    const pageSize = 10;
+    const pageCount = Math.max(1, Math.ceil(tasks.length / pageSize));
+    const safePage = Math.min(Math.max(1, page), pageCount);
+    const pagedTasks = tasks.slice((safePage - 1) * pageSize, safePage * pageSize);
     return (
       <div className="page animate-fadeIn">
         <header className="page-header">
@@ -431,17 +501,11 @@ export default function Progress() {
         </header>
 
         <section className="panel task-list-panel">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">任务列表</h2>
-              <p className="panel-subtitle">最近 50 个批处理任务</p>
-            </div>
-            <span className="chip chip-blue">{tasks.length} 个任务</span>
-          </div>
           {!tasksReady ? (
             <div className="task-list-skeleton">
               {[0, 1, 2, 3, 4].map((item) => (
                 <div key={item} className="table-skeleton-row">
+                  <span />
                   <span />
                   <span />
                   <span />
@@ -469,11 +533,12 @@ export default function Progress() {
                     <th>状态</th>
                     <th><span className="th-with-tip">统计数据<InfoTip text="失败 / 成功 / 总数" /></span></th>
                     <th>执行时间</th>
+                    <th>耗时</th>
                     <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {tasks.map((task) => (
+                  {pagedTasks.map((task) => (
                     <tr key={task.id} onClick={() => handleSelectTask(task)} style={{ cursor: 'pointer' }}>
                       <td className="mono">{task.id}</td>
                       <td className="mono task-cell-dirs" style={{ maxWidth: 420 }}>
@@ -492,6 +557,7 @@ export default function Progress() {
                         <div>{(task.started_at || '').replace('T', ' ') || '-'}</div>
                         <div>{(task.finished_at || '').replace('T', ' ') || '-'}</div>
                       </td>
+                      <td className="mono">{formatDuration(task.started_at, task.finished_at)}</td>
                       <td className="task-cell-actions" onClick={(event) => event.stopPropagation()}>
                         <button
                           type="button"
@@ -505,6 +571,27 @@ export default function Progress() {
                   ))}
                 </tbody>
               </table>
+              <div className="table-pagination">
+                <span className="table-pagination-info">共 {tasks.length} 个任务 · 第 {safePage} / {pageCount} 页</span>
+                <div className="table-pagination-controls">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={safePage <= 1}
+                    onClick={() => setPage(safePage - 1)}
+                  >
+                    上一页
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={safePage >= pageCount}
+                    onClick={() => setPage(safePage + 1)}
+                  >
+                    下一页
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </section>
@@ -602,12 +689,25 @@ export default function Progress() {
       </header>
 
       {(outputPath || isRunning) && (
-        <div className="library-root-row">
-          <span>输出目录</span>
-          <span className="library-current-path mono" title={outputPath || selectedTask.output_path}>
-            {outputPath || selectedTask.output_path || '尚未生成'}
+        <div className="library-root-row task-dir-rows">
+          <div className="task-dir-lines">
+            <div className="task-dir-line">
+              <span>输出根目录</span>
+              <span className="library-current-path mono" title={selectedTask.output_path}>
+                {selectedTask.output_path || '尚未生成'}
+              </span>
+            </div>
+            <div className="task-dir-line">
+              <span>当前目录</span>
+              <span className="library-current-path mono" title={outputPath || selectedTask.output_path}>
+                {outputPath || selectedTask.output_path || '尚未生成'}
+              </span>
+            </div>
+          </div>
+          <span className="task-detail-status">
+            {isRunning && <Icons.Loader />}
+            {(isRunning && progressText) ? progressText : taskStatusLabel(selectedTask.status)}
           </span>
-          <span className="task-detail-status" style={{ marginLeft: 'auto' }}>{(isRunning && progressText) ? progressText : taskStatusLabel(selectedTask.status)}</span>
         </div>
       )}
 
@@ -703,7 +803,7 @@ export default function Progress() {
                 onShowLog={() => setRightView('log')}
               />
             )}
-            footerExtra={<SongInspectorPaths song={matchedSong} />}
+            footerExtra={<SongInspectorPaths song={matchedSong} outputRoot={selectedTask.output_path} />}
           />
         ) : (
           <EmptyInspector

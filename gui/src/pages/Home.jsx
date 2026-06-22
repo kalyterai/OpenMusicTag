@@ -154,6 +154,14 @@ export default function Home() {
     }
   };
 
+  // 菜单导航时回到资源库的「第一页」：收起已打开的文件详情，回到纯浏览态
+  const navMountRef = useRef(false);
+  useEffect(() => {
+    if (!navMountRef.current) { navMountRef.current = true; return; }
+    setSelectedFolder(null);
+    useAppStore.getState().closeFileDetail();
+  }, [store.navNonce]);
+
   useEffect(() => {
     const fileName = store.fileDetailVisible && store.selectedFile?.name ? store.selectedFile.name : '';
     document.title = fileName ? `OpenMusicTag - ${fileName}` : 'OpenMusicTag - 音乐整理工具';

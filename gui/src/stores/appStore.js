@@ -45,6 +45,8 @@ const useAppStore = create((set) => ({
   // UI 状态
   currentPage: 'dashboard',
   sidebarCollapsed: false,
+  // 每次菜单导航自增，页面据此「回到第一页」（即使停留在同一菜单也会变化）
+  navNonce: 0,
 
   // 任务状态
   taskStatus: 'idle',
@@ -77,7 +79,7 @@ const useAppStore = create((set) => ({
   logs: [],
 
   // UI Actions
-  setCurrentPage: (page) => set({ currentPage: page }),
+  setCurrentPage: (page) => set((state) => ({ currentPage: page, navNonce: state.navNonce + 1 })),
   setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
 
   // Task Actions

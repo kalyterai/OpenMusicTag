@@ -270,10 +270,74 @@ textarea:focus-visible {
 }
 
 .task-detail-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
   color: var(--muted);
   font-size: 12px;
   font-weight: 750;
   white-space: nowrap;
+}
+
+.task-detail-status svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* 输出根目录 / 当前目录 两行 + 右侧状态 */
+.task-dir-rows {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.task-dir-lines {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.task-dir-line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.task-dir-line > span:first-child {
+  font-size: 12px;
+  font-weight: 850;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* 任务列表分页条 */
+.table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+}
+
+.table-pagination-info {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.table-pagination-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.table-pagination-controls .btn {
+  min-height: 32px;
+  padding: 6px 12px;
+  font-size: 12px;
 }
 
 .task-song-head {
@@ -749,10 +813,10 @@ textarea:focus-visible {
 
 .table-skeleton-row {
   display: grid;
-  grid-template-columns: 56px minmax(240px, 1.6fr) 96px minmax(110px, 0.7fr) minmax(150px, 1fr) 88px;
+  grid-template-columns: 56px minmax(220px, 1.5fr) 96px minmax(110px, 0.7fr) minmax(150px, 1fr) 72px 88px;
   gap: 14px;
   align-items: center;
-  min-width: 820px;
+  min-width: 900px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--line);
 }
