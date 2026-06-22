@@ -208,7 +208,7 @@ function AudioPlayer({ file }) {
   );
 }
 
-export function FileDetailPanel({ file, headerExtra }) {
+export function FileDetailPanel({ file, headerExtra, footerExtra }) {
   if (!file) return null;
 
   const tags = file.tags && typeof file.tags === 'object' ? file.tags : {};
@@ -245,6 +245,7 @@ export function FileDetailPanel({ file, headerExtra }) {
           </div>
         )}
       </div>
+      {footerExtra}
       <AudioPlayer file={file} />
     </section>
   );

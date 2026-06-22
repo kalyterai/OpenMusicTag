@@ -18,14 +18,24 @@ class NormalizeArtistStage(PipelineStage):
 
     def process(self, audio_file: "AudioFile", context: "PipelineContext") -> "AudioFile":
         """标准化艺人名称"""
+        changes = []
         for key in ["artist", "albumartist"]:
             if key in audio_file.raw_tags and audio_file.raw_tags[key]:
-                audio_file.raw_tags[key] = self.normalize_artist(
-                    audio_file.raw_tags[key]
-                )
+                before = audio_file.raw_tags[key]
+                after = self.normalize_artist(before)
+                audio_file.raw_tags[key] = after
+                if after != before:
+                    changes.append({"field": key, "before": before, "after": after})
         # 同时清理 album 中的特殊字符
         if "album" in audio_file.raw_tags:
-            audio_file.raw_tags["album"] = self.cleanup_album(
-                audio_file.raw_tags["album"]
-            )
+            before = audio_file.raw_tags["album"]
+            after = self.cleanup_album(before)
+            audio_file.raw_tags["album"] = after
+            if after != before:
+                changes.append({"field": "album", "before": before, "after": after})
+
+        if changes:
+            context.note("标准化了艺人/专辑名称", changes=changes)
+        else:
+            context.note("艺人/专辑名称已规范，无需改动")
         return audio_file

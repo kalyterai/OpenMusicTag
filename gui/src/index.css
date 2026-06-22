@@ -246,28 +246,34 @@ textarea:focus-visible {
 
 .task-detail-summary {
   display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 6px 12px;
+  align-items: baseline;
+  gap: 6px;
+  padding: 7px 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: rgba(255, 253, 247, 0.74);
+  font-variant-numeric: tabular-nums;
 }
 
-.task-detail-stat {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  color: var(--muted);
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.task-detail-stat b {
-  font-size: 15px;
+.task-detail-summary b {
+  font-size: 16px;
   font-weight: 850;
   color: var(--ink);
-  font-variant-numeric: tabular-nums;
+}
+
+.task-detail-summary b.is-fail {
+  color: var(--red);
+}
+
+.task-detail-summary > span {
+  color: var(--faint);
+}
+
+.task-detail-status {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
 }
 
 .task-song-head {
@@ -285,9 +291,20 @@ textarea:focus-visible {
   gap: 12px;
 }
 
+.task-song-error {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--red-soft);
+  color: var(--red);
+  font-size: 12px;
+}
+
 .task-song-paths {
   display: grid;
   gap: 6px;
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
 }
 
 .task-song-path {
@@ -309,12 +326,127 @@ textarea:focus-visible {
   color: var(--ink-soft);
 }
 
-.task-song-error {
-  padding: 8px 10px;
-  border-radius: 6px;
-  background: var(--red-soft);
-  color: var(--red);
+/* ===== 任务列表双行单元格 ===== */
+.task-list-table th .th-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--faint);
+}
+
+.task-cell-sub {
+  margin-top: 3px;
+  color: var(--muted);
   font-size: 12px;
+}
+
+.task-cell-stats {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.task-cell-stats b {
+  font-weight: 850;
+  color: var(--ink);
+}
+
+.task-cell-stats b.is-fail {
+  color: var(--red);
+}
+
+.task-cell-stats span {
+  color: var(--faint);
+}
+
+.task-cell-time {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== 详细日志 - 环节明细 ===== */
+.log-stage {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 253, 247, 0.6);
+}
+
+.log-stage.is-alert {
+  border-color: rgba(193, 86, 64, 0.4);
+  background: var(--red-soft);
+}
+
+.log-stage-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.log-stage-name {
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.log-stage-time {
+  margin-left: auto;
+  color: var(--faint);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.log-stage-message {
+  margin-top: 6px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.log-change-list {
+  margin-top: 8px;
+  display: grid;
+  gap: 4px;
+}
+
+.log-change {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.log-change-field {
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.log-change-before {
+  color: var(--faint);
+  text-decoration: line-through;
+}
+
+.log-change-arrow {
+  color: var(--groove);
+  font-weight: 800;
+}
+
+.log-change-after {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.log-stage-trace {
+  margin-top: 8px;
+  padding: 8px;
+  max-height: 180px;
+  overflow: auto;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 6px;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--red);
 }
 
 .panel {
@@ -437,10 +569,10 @@ textarea:focus-visible {
 
 .table-skeleton-row {
   display: grid;
-  grid-template-columns: 56px minmax(220px, 1.4fr) 96px 64px 64px 64px minmax(140px, 0.8fr) minmax(140px, 0.8fr);
+  grid-template-columns: 56px minmax(240px, 1.6fr) 96px minmax(120px, 0.8fr) minmax(150px, 1fr);
   gap: 14px;
   align-items: center;
-  min-width: 940px;
+  min-width: 760px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--line);
 }

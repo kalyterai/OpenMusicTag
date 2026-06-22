@@ -128,10 +128,13 @@ class MusicOrganizerPipeline:
                 audio_file = stage.process(audio_file, context)
             except Exception as exc:
                 duration_ms = int((time.time() - t0) * 1000)
+                _, note_msg, changes = self._merge_notes(context.drain_notes())
+                detail = f"{type(exc).__name__}: {exc}"
                 trace.append({
                     "stage": stage_name,
                     "status": "failed",
-                    "message": f"{type(exc).__name__}: {exc}",
+                    "message": f"{note_msg}；{detail}" if note_msg else detail,
+                    "changes": changes,
                     "duration_ms": duration_ms,
                     "traceback": traceback.format_exc(),
                 })
@@ -141,12 +144,14 @@ class MusicOrganizerPipeline:
                 return None, False, {}, trace
 
             duration_ms = int((time.time() - t0) * 1000)
+            status, message, changes = self._merge_notes(context.drain_notes())
 
             # 该阶段正常完成且 pipeline 继续
             if context.should_continue():
                 trace.append({
-                    "stage": stage_name, "status": "ok",
-                    "message": "", "duration_ms": duration_ms,
+                    "stage": stage_name, "status": status,
+                    "message": message, "changes": changes,
+                    "duration_ms": duration_ms,
                 })
                 continue
 
@@ -154,12 +159,14 @@ class MusicOrganizerPipeline:
             if context.is_cancelled():
                 trace.append({
                     "stage": stage_name, "status": "ok",
-                    "message": "外部取消", "duration_ms": duration_ms,
+                    "message": "外部取消", "changes": changes,
+                    "duration_ms": duration_ms,
                 })
             else:
                 trace.append({
                     "stage": stage_name, "status": "skipped",
-                    "message": "命中规则，跳过后续环节", "duration_ms": duration_ms,
+                    "message": message or "命中规则，跳过后续环节",
+                    "changes": changes, "duration_ms": duration_ms,
                 })
             break
 
@@ -175,6 +182,30 @@ class MusicOrganizerPipeline:
             return path.stat().st_size
         except OSError:
             return 0
+
+    _STATUS_SEVERITY = {"ok": 0, "skipped": 1, "warning": 2, "failed": 3}
+
+    @classmethod
+    def _merge_notes(cls, notes) -> Tuple[str, str, list]:
+        """把单个环节累积的多条说明合并成 (status, message, changes)。
+
+        status 取最严重的一条；message 用「；」拼接；changes 按顺序汇总。
+        无说明时返回 (\"ok\", \"\", [])。
+        """
+        if not notes:
+            return "ok", "", []
+        status = "ok"
+        messages = []
+        changes = []
+        for n in notes:
+            n_status = n.get("status", "ok")
+            if cls._STATUS_SEVERITY.get(n_status, 0) > cls._STATUS_SEVERITY.get(status, 0):
+                status = n_status
+            msg = n.get("message")
+            if msg:
+                messages.append(msg)
+            changes.extend(n.get("changes") or [])
+        return status, "；".join(messages), changes
 
     @staticmethod
     def _failure_from_trace(trace) -> Tuple[str, str]:

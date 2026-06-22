@@ -16,6 +16,35 @@ class PipelineContext:
         self.config = config
         self.cancel_event = cancel_event
         self.breakout = False  # 控制是否提前终止 pipeline
+        # 当前环节产生的人类可读说明，处理完每个环节后由 pipeline 取走
+        self.notes: List[Dict[str, Any]] = []
+
+    # ========== 环节日志 ==========
+
+    def note(
+        self,
+        message: str,
+        status: str = "ok",
+        changes: Optional[List[Dict[str, Any]]] = None,
+    ) -> None:
+        """记录当前环节的执行结果，供详细日志展示。
+
+        - ``message``：人类可读的结果说明（为什么 ok / 为什么没做事）。
+        - ``status``：``ok`` / ``warning`` / ``skipped`` / ``failed``。
+        - ``changes``：字段变化列表，每项 ``{"field", "before", "after"}``，
+          用于在日志中展示「之前 → 现在」。
+        """
+        self.notes.append({
+            "message": message,
+            "status": status,
+            "changes": list(changes or []),
+        })
+
+    def drain_notes(self) -> List[Dict[str, Any]]:
+        """取走并清空当前环节累积的说明（pipeline 在每个环节后调用）。"""
+        notes = self.notes
+        self.notes = []
+        return notes
 
     def is_cancelled(self) -> bool:
         """检查外部是否请求取消"""

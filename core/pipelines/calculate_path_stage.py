@@ -26,11 +26,18 @@ class CalculateOutputPathStage(PipelineStage):
 
         # 如果没有有效的歌手或专辑信息，保持原目录结构和文件名
         if not raw_artist or not raw_album or not raw_title:
+            missing = [name for name, value in
+                       (("艺人", raw_artist), ("专辑", raw_album), ("标题", raw_title))
+                       if not value]
             original_dir = audio_file.path.parent.name
             target_dir = context.output_path / original_dir
             target_dir.mkdir(parents=True, exist_ok=True)
             output_path = target_dir / audio_file.path.name
             audio_file.output_path = output_path
+            context.note(
+                f"缺少{ '、'.join(missing) }，按原文件名归档：{output_path}",
+                status="warning",
+            )
             return audio_file
 
         # 有有效信息，使用转换后的值
@@ -46,4 +53,5 @@ class CalculateOutputPathStage(PipelineStage):
         output_path = target_dir / new_filename
 
         audio_file.output_path = output_path
+        context.note(f"按 艺人/专辑 结构归档：{output_path}")
         return audio_file

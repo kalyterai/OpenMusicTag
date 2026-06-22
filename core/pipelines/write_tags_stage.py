@@ -37,12 +37,14 @@ class WriteTagsStage(PipelineStage):
     def process(self, audio_file: "AudioFile", context: "PipelineContext") -> "AudioFile":
         """写入元数据标签"""
         if not audio_file.output_path:
+            context.note("没有输出文件，无法写入标签", status="warning")
             return audio_file
 
         path = audio_file.output_path
         ext = path.suffix.lower()
         meta = audio_file.final_metadata
         cover_path = audio_file.scraped.get("_cover_path")
+        wrote_cover = bool(cover_path and Path(cover_path).exists())
 
         try:
             if ext == ".mp3":
@@ -51,9 +53,18 @@ class WriteTagsStage(PipelineStage):
                 self._write_flac_tags(path, meta, cover_path, context)
             elif ext == ".wav":
                 self._write_wav_tags(path, meta, cover_path, context)
+            else:
+                context.note(f"格式 {ext} 不支持写入标签", status="warning")
+                return audio_file
             print("  ✓ 标签写入成功")
-        except Exception:
+            written = [f"{k}={meta[k]}" for k in ("title", "artist", "album", "year", "genre")
+                       if meta.get(k)]
+            summary = "，".join(written) if written else "无有效字段"
+            cover_note = "，已嵌入封面" if wrote_cover else "，未嵌入封面"
+            context.note(f"已写入标签：{summary}{cover_note}")
+        except Exception as exc:
             print(f"  ✗ 写入标签失败: {traceback.format_exc()}")
+            context.note(f"写入标签失败：{type(exc).__name__}: {exc}", status="warning")
 
         return audio_file
 

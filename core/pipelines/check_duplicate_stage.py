@@ -37,7 +37,9 @@ class CheckDuplicateStage(PipelineStage):
         # 检查是否已存在
         if target_path.exists():
             print(f"  ⏭  文件已存在，跳过: {target_path.name}")
+            context.note(f"目标已存在，跳过后续处理：{target_path}", status="skipped")
             context.stop()  # 停止后续阶段
             return audio_file
 
+        context.note("目标位置无同名文件，继续处理")
         return audio_file

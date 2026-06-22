@@ -26,6 +26,7 @@ class LoadStage(PipelineStage):
         """加载文件并创建 mutagen 对象"""
         if not audio_file.path.exists():
             print(f"  ✗ 文件不存在: {audio_file.path}")
+            context.note(f"文件不存在：{audio_file.path}", status="failed")
             return audio_file
 
         ext = audio_file.ext
@@ -40,7 +41,12 @@ class LoadStage(PipelineStage):
                 audio_file.audio = APEv2(audio_file.path)
             else:
                 print(f"  ⚠ 不支持的格式: {ext}")
+                context.note(f"不支持的格式 {ext}，无法读取音频对象", status="warning")
+                return audio_file
         except Exception as e:
             print(f"  ✗ 无法读取文件: {e}")
+            context.note(f"无法读取文件：{e}", status="warning")
+            return audio_file
 
+        context.note(f"已加载 {ext} 文件")
         return audio_file

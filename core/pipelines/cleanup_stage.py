@@ -24,6 +24,9 @@ class CleanupStage(PipelineStage):
         if cover_path and Path(cover_path).exists():
             try:
                 os.remove(cover_path)
-            except:
-                pass
+                context.note("已删除临时封面文件")
+            except Exception as exc:
+                context.note(f"临时封面删除失败：{exc}", status="warning")
+        else:
+            context.note("无临时文件需要清理")
         return audio_file

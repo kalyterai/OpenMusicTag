@@ -39,12 +39,15 @@ class CopyFileStage(PipelineStage):
     def process(self, audio_file: "AudioFile", context: "PipelineContext") -> "AudioFile":
         """复制文件到输出路径"""
         if not audio_file.output_path:
+            context.note("没有计算出输出路径，无法复制文件", status="failed")
             return audio_file
 
         print(f"  复制到: {audio_file.output_path}")
         if safe_copy(audio_file.path, audio_file.output_path):
+            context.note(f"已复制到 {audio_file.output_path}")
             return audio_file
         else:
             print(f"  ✗ 复制失败")
+            context.note(f"复制失败：{audio_file.output_path}", status="failed")
             audio_file.output_path = None
             return audio_file

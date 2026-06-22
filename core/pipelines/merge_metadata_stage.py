@@ -34,4 +34,26 @@ class MergeMetadataStage(PipelineStage):
         }
 
         audio_file.final_metadata = merged
+
+        # 记录每个字段最终采用了哪份数据，以及相对原始标签的变化
+        changes = []
+        from_scrape = []
+        for key in ("title", "artist", "album", "year", "genre", "composer"):
+            final_value = merged.get(key, "")
+            raw_value = raw.get(key, "")
+            scraped_value = scraped.get(key, "")
+            if scraped_value and final_value == scraped_value and scraped_value != raw_value:
+                from_scrape.append(key)
+            if final_value != raw_value:
+                changes.append({"field": key, "before": raw_value, "after": final_value})
+
+        if from_scrape:
+            context.note(
+                f"合并完成，{len(from_scrape)} 个字段采用刮削数据（{ '、'.join(from_scrape) }）",
+                changes=changes,
+            )
+        elif changes:
+            context.note("合并完成，沿用清理后的原始标签（有字段调整）", changes=changes)
+        else:
+            context.note("合并完成，最终标签与原始标签一致")
         return audio_file

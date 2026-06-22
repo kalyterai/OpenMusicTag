@@ -43,13 +43,25 @@ class DownloadCoverStage(PipelineStage):
 
     def process(self, audio_file: "AudioFile", context: "PipelineContext") -> "AudioFile":
         """下载并嵌入封面（如果文件没有封面则下载）"""
+        has_embedded = self._has_embedded_cover(audio_file.audio)
         cover_url = audio_file.scraped.get("cover_url")
-        if not cover_url or not audio_file.output_path:
+
+        if not audio_file.output_path:
+            context.note("没有输出路径，无法处理封面", status="warning")
             return audio_file
 
-        # 检查原始文件是否已经有封面
-        if self._has_embedded_cover(audio_file.audio):
+        # 原始文件已自带封面：不需要再下载，但这是合理的「有封面」
+        if has_embedded:
             print(f"  ✓ 文件已有封面，跳过下载")
+            context.note("文件已自带内嵌封面，无需下载")
+            return audio_file
+
+        # 没有内嵌封面，且刮削也没给封面地址 —— 这种情况文件最终会没有封面
+        if not cover_url:
+            context.note(
+                "文件无内嵌封面，且刮削未返回封面地址，输出文件将没有封面",
+                status="warning",
+            )
             return audio_file
 
         temp_path = audio_file.output_path.parent / "cover_temp.jpg"
@@ -57,6 +69,9 @@ class DownloadCoverStage(PipelineStage):
 
         if downloaded:
             audio_file.scraped["_cover_path"] = downloaded
+            context.note(f"已从刮削结果下载封面：{cover_url}")
+        else:
+            context.note(f"封面下载失败，输出文件将没有封面：{cover_url}", status="warning")
         return audio_file
 
     def _has_embedded_cover(self, audio) -> bool:

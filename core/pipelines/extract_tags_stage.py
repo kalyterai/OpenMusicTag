@@ -19,6 +19,7 @@ class ExtractRawTagsStage(PipelineStage):
     def process(self, audio_file: "AudioFile", context: "PipelineContext") -> "AudioFile":
         """从文件中提取原始标签"""
         if not audio_file.audio:
+            context.note("没有可用的音频对象，无法提取标签", status="warning")
             return audio_file
 
         tags = {}
@@ -43,6 +44,12 @@ class ExtractRawTagsStage(PipelineStage):
                 tags["genre"] = self._get_first(audio, "GENRE")
 
         audio_file.raw_tags = tags
+        present = [k for k in ("title", "artist", "album", "year", "genre") if tags.get(k)]
+        if present:
+            summary = "，".join(f"{k}={tags[k]}" for k in present)
+            context.note(f"读取到内嵌标签：{summary}")
+        else:
+            context.note("文件没有可读的内嵌标签（标题/艺人/专辑均为空）", status="warning")
         return audio_file
 
     def _get_first(self, audio, key: str) -> str:

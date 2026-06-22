@@ -50,6 +50,37 @@ const Icons = {
 
 const normalizePath = (value) => String(value || '').replace(/\\/g, '/').replace(/\/+$/, '');
 
+const TASK_STATUS_CN = {
+  completed: '已完成',
+  running: '进行中',
+  processing: '处理中',
+  scanning: '扫描中',
+  pending: '等待中',
+  idle: '准备中',
+  failed: '失败',
+  error: '出错',
+  cancelled: '已取消',
+};
+
+const STAGE_STATUS_CN = {
+  ok: '正常',
+  success: '成功',
+  warning: '注意',
+  skipped: '跳过',
+  failed: '失败',
+  error: '出错',
+};
+
+const taskStatusLabel = (status) => TASK_STATUS_CN[status] || status || '未知';
+const stageStatusLabel = (status) => STAGE_STATUS_CN[status] || status || '正常';
+
+const stageStatusChipClass = (status) => (
+  status === 'failed' || status === 'error' ? 'chip-red'
+    : status === 'warning' ? 'chip-amber'
+      : status === 'skipped' ? 'chip-amber'
+        : status === 'success' || status === 'ok' ? 'chip-green' : ''
+);
+
 function StatusBadge({ status, children }) {
   const cls = {
     success: 'chip-green',
@@ -62,25 +93,60 @@ function StatusBadge({ status, children }) {
   return <span className={`chip ${cls}`}>{children}</span>;
 }
 
+function StageChange({ change }) {
+  const before = change.before;
+  const after = change.after;
+  const fmt = (value) => {
+    if (value === null || value === undefined || value === '') return '(空)';
+    return String(value);
+  };
+  return (
+    <div className="log-change">
+      <span className="log-change-field">{change.field}</span>
+      <span className="log-change-before">{fmt(before)}</span>
+      <span className="log-change-arrow">→</span>
+      <span className="log-change-after">{fmt(after)}</span>
+    </div>
+  );
+}
+
+function StageRow({ stage }) {
+  const status = stage.status || 'ok';
+  const isAlert = status === 'failed' || status === 'error' || status === 'warning';
+  const changes = stage.changes || [];
+  return (
+    <div className={`log-stage ${isAlert ? 'is-alert' : ''}`}>
+      <div className="log-stage-head">
+        <span className="log-stage-name">{stage.stage}</span>
+        <span className={`chip ${stageStatusChipClass(status)}`}>{stageStatusLabel(status)}</span>
+        {stage.duration_ms ? <span className="log-stage-time">{stage.duration_ms}ms</span> : null}
+      </div>
+      {stage.message && <div className="log-stage-message">{stage.message}</div>}
+      {changes.length > 0 && (
+        <div className="log-change-list">
+          {changes.map((change, index) => (
+            <StageChange key={`${change.field}-${index}`} change={change} />
+          ))}
+        </div>
+      )}
+      {stage.traceback && (
+        <pre className="log-stage-trace">{stage.traceback}</pre>
+      )}
+    </div>
+  );
+}
+
 function LogRecord({ record }) {
   const status = record.status || 'info';
-  const chipClass = status === 'success' ? 'chip-green' : status === 'failed' ? 'chip-red' : 'chip-amber';
   return (
     <article className="panel" style={{ padding: 14, boxShadow: 'none' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
         <div className="truncate-1 mono" style={{ minWidth: 0, fontSize: 12, color: 'var(--ink-soft)' }}>{record.source}</div>
-        <span className={`chip ${chipClass}`}>{status}</span>
+        <span className={`chip ${stageStatusChipClass(status)}`}>{stageStatusLabel(status)}</span>
       </div>
-      <div style={{ marginTop: 12, display: 'grid', gap: 6 }}>
+      <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
         {(record.stages || []).map((stage, index) => (
-          <div key={`${stage.stage}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12 }}>
-            <span className="truncate-1" style={{ color: stage.status === 'failed' ? 'var(--red)' : 'var(--muted)' }}>
-              {stage.stage}{stage.message ? ` · ${stage.message}` : ''}
-            </span>
-            <span style={{ flex: '0 0 auto', color: stage.status === 'failed' ? 'var(--red)' : 'var(--faint)', fontVariantNumeric: 'tabular-nums' }}>
-              {stage.status}{stage.duration_ms ? ` ${stage.duration_ms}ms` : ''}
-            </span>
-          </div>
+          <StageRow key={`${stage.stage}-${index}`} stage={stage} />
         ))}
         {(record.stages || []).length === 0 && (
           <div style={{ fontSize: 12, color: 'var(--faint)' }}>没有记录到环节明细。</div>
@@ -92,12 +158,11 @@ function LogRecord({ record }) {
 
 function SongInspectorHeader({ song, hasLog, onShowLog }) {
   const status = song?.status || 'info';
-  const chipClass = status === 'success' ? 'chip-green' : status === 'failed' ? 'chip-red' : status === 'skipped' ? 'chip-amber' : '';
   const isFailed = status === 'failed';
   return (
     <div className="task-song-head">
       <div className="task-song-head-row">
-        <span className={`chip ${chipClass}`}>{song ? status : '未在本任务记录'}</span>
+        <span className={`chip ${stageStatusChipClass(status)}`}>{song ? stageStatusLabel(status) : '未在本任务记录'}</span>
         <button
           type="button"
           className="btn btn-secondary"
@@ -108,18 +173,22 @@ function SongInspectorHeader({ song, hasLog, onShowLog }) {
           详细日志
         </button>
       </div>
-      {song && (
-        <div className="task-song-paths">
-          <div className="task-song-path"><span>来源</span><code className="mono truncate-1" title={song.source_path}>{song.source_path || '-'}</code></div>
-          <div className="task-song-path"><span>输出</span><code className="mono truncate-1" title={song.output_path}>{song.output_path || '-'}</code></div>
-        </div>
-      )}
       {isFailed && (song.failed_stage || song.error_message) && (
         <div className="task-song-error">
           {song.failed_stage && <span style={{ fontWeight: 800 }}>{song.failed_stage}</span>}
           {song.error_message && <span style={{ marginLeft: song.failed_stage ? 8 : 0 }}>{song.error_message}</span>}
         </div>
       )}
+    </div>
+  );
+}
+
+function SongInspectorPaths({ song }) {
+  if (!song) return null;
+  return (
+    <div className="task-song-paths">
+      <div className="task-song-path"><span>来源目录</span><code className="mono truncate-1" title={song.source_path}>{song.source_path || '-'}</code></div>
+      <div className="task-song-path"><span>输出目录</span><code className="mono truncate-1" title={song.output_path}>{song.output_path || '-'}</code></div>
     </div>
   );
 }
@@ -165,8 +234,6 @@ export default function Progress() {
   const selectedFailed = selectedTask?.failed ?? failCount;
   const selectedSkipped = selectedTask?.skipped ?? 0;
   const selectedProcessed = selectedSuccess + selectedFailed + selectedSkipped;
-  const successRate = processedFiles > 0 ? Math.round((successCount / processedFiles) * 100) : 0;
-  const selectedRate = selectedProcessed > 0 ? Math.round((selectedSuccess / selectedProcessed) * 100) : successRate;
   const selectedProgress = selectedTask
     ? (selectedTask.status === 'completed' || selectedTask.status === 'cancelled'
       ? 100
@@ -299,15 +366,6 @@ export default function Progress() {
     }
   };
 
-  const statusText = {
-    idle: '准备中',
-    scanning: '扫描目录',
-    processing: '处理中',
-    completed: '已完成',
-    error: '出错',
-    cancelled: '已取消',
-  }[taskStatus] || taskStatus;
-
   if (!selectedTask) {
     return (
       <div className="page animate-fadeIn">
@@ -337,9 +395,6 @@ export default function Progress() {
                   <span />
                   <span />
                   <span />
-                  <span />
-                  <span />
-                  <span />
                 </div>
               ))}
             </div>
@@ -353,32 +408,36 @@ export default function Progress() {
             </div>
           ) : (
             <div className="stable-table-wrap">
-              <table className="table">
+              <table className="table task-list-table">
                 <thead>
                   <tr>
                     <th>任务ID</th>
-                    <th>输入目录</th>
+                    <th>执行目录</th>
                     <th>状态</th>
-                    <th>文件</th>
-                    <th>成功</th>
-                    <th>失败</th>
-                    <th>开始时间</th>
-                    <th>结束时间</th>
+                    <th>统计数据<span className="th-hint">失败/成功/总数</span></th>
+                    <th>执行时间<span className="th-hint">开始/结束</span></th>
                   </tr>
                 </thead>
                 <tbody>
                   {tasks.map((task) => (
                     <tr key={task.id} onClick={() => handleSelectTask(task)} style={{ cursor: 'pointer' }}>
                       <td className="mono">{task.id}</td>
-                      <td className="mono" style={{ maxWidth: 360 }}>
-                        <div className="truncate-1">{task.input_path}</div>
+                      <td className="mono task-cell-dirs" style={{ maxWidth: 420 }}>
+                        <div className="truncate-1" title={task.input_path}>{task.input_path || '-'}</div>
+                        <div className="truncate-1 task-cell-sub" title={task.output_path}>{task.output_path || '-'}</div>
                       </td>
-                      <td><span className={`chip ${task.status === 'completed' ? 'chip-green' : task.status === 'running' ? 'chip-blue' : 'chip-amber'}`}>{task.status}</span></td>
-                      <td>{task.total || 0}</td>
-                      <td>{task.success || 0}</td>
-                      <td>{task.failed || 0}</td>
-                      <td>{(task.started_at || '').replace('T', ' ') || '-'}</td>
-                      <td>{(task.finished_at || '').replace('T', ' ') || '-'}</td>
+                      <td><span className={`chip ${task.status === 'completed' ? 'chip-green' : task.status === 'running' ? 'chip-blue' : task.status === 'failed' || task.status === 'error' ? 'chip-red' : 'chip-amber'}`}>{taskStatusLabel(task.status)}</span></td>
+                      <td className="task-cell-stats">
+                        <b className={Number(task.failed) > 0 ? 'is-fail' : ''}>{task.failed || 0}</b>
+                        <span> / </span>
+                        <b>{task.success || 0}</b>
+                        <span> / </span>
+                        <b>{task.total || 0}</b>
+                      </td>
+                      <td className="task-cell-time">
+                        <div>{(task.started_at || '').replace('T', ' ') || '-'}</div>
+                        <div className="task-cell-sub">{(task.finished_at || '').replace('T', ' ') || '-'}</div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -407,15 +466,15 @@ export default function Progress() {
           </p>
         </div>
         <div className="toolbar task-detail-toolbar">
-          <div className="task-detail-summary">
-            <span className="task-detail-stat"><b>{selectedProgress}%</b>进度</span>
-            <span className="task-detail-stat"><b>{selectedTotal}</b>文件</span>
-            <span className="task-detail-stat"><b style={{ color: 'var(--ink)' }}>{selectedSuccess}</b>成功</span>
-            <span className="task-detail-stat"><b style={{ color: selectedFailed > 0 ? 'var(--red)' : 'var(--ink)' }}>{selectedFailed}</b>失败</span>
-            <span className="task-detail-stat"><b>{selectedRate}%</b>成功率</span>
+          <div className="task-detail-summary" title="失败 / 成功 / 总数">
+            <b className={selectedFailed > 0 ? 'is-fail' : ''}>{selectedFailed}</b>
+            <span>/</span>
+            <b>{selectedSuccess}</b>
+            <span>/</span>
+            <b>{selectedTotal}</b>
           </div>
           <StatusBadge status={selectedTask.status === 'failed' || selectedTask.status === 'error' ? 'error' : (isRunning ? 'processing' : 'info')}>
-            {selectedTask.status || statusText}
+            {taskStatusLabel(selectedTask.status || taskStatus)}
           </StatusBadge>
           <button type="button" className="btn btn-secondary" onClick={() => setSelectedTask(null)}>返回任务列表</button>
           {isRunning && taskStatus === 'processing' && (
@@ -442,7 +501,7 @@ export default function Progress() {
           <span className="library-current-path mono" title={outputPath || selectedTask.output_path}>
             {outputPath || selectedTask.output_path || '尚未生成'}
           </span>
-          <span className="task-detail-stat" style={{ marginLeft: 'auto' }}>{progressText || statusText}</span>
+          <span className="task-detail-status" style={{ marginLeft: 'auto' }}>{(isRunning && progressText) ? progressText : taskStatusLabel(selectedTask.status)}</span>
         </div>
       )}
 
@@ -538,6 +597,7 @@ export default function Progress() {
                 onShowLog={() => setRightView('log')}
               />
             )}
+            footerExtra={<SongInspectorPaths song={matchedSong} />}
           />
         ) : (
           <EmptyInspector

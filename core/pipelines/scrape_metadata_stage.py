@@ -126,6 +126,7 @@ class ScrapeMetadataStage(PipelineStage):
         original_album = tags.get("album", "").strip()
 
         if not title or not artist:
+            context.note("缺少标题或艺人，跳过 MusicBrainz 刮削", status="warning")
             return audio_file
 
         print(f"  正在刮削: {artist} - {title}")
@@ -140,12 +141,14 @@ class ScrapeMetadataStage(PipelineStage):
                 release = self._select_best_release(result)
                 scraped = self._build_scraped(result, release)
                 audio_file.scraped = scraped
+                self._note_scraped(context, scraped, f"按专辑《{original_album}》匹配")
                 return audio_file
 
         # 2. 降级：用 title + artist 搜索
         result = self.client.search(title, artist)
 
         if not result or "recording-list" not in result:
+            context.note(f"MusicBrainz 未找到「{artist} - {title}」的匹配结果", status="warning")
             return audio_file
 
         recordings = result["recording-list"]
@@ -157,13 +160,26 @@ class ScrapeMetadataStage(PipelineStage):
                 release = self._select_best_release(rec)
                 scraped = self._build_scraped(rec, release)
                 audio_file.scraped = scraped
+                self._note_scraped(context, scraped, "匹配到官方正式版")
                 return audio_file
 
         # 如果全是演唱会版本，返回第一个
         release = self._select_best_release(recordings[0])
         scraped = self._build_scraped(recordings[0], release)
         audio_file.scraped = scraped
+        self._note_scraped(context, scraped, "未找到正式版，使用首个候选（可能为现场/合辑版）")
         return audio_file
+
+    def _note_scraped(self, context, scraped: Dict, how: str) -> None:
+        """把刮削结果摘要写入环节日志，便于核对来源数据。"""
+        album = scraped.get("album") or "(无专辑)"
+        year = scraped.get("year") or "(无年份)"
+        confidence = scraped.get("confidence", 0)
+        has_cover = "有封面地址" if scraped.get("cover_url") else "无封面地址"
+        context.note(
+            f"{how}：专辑={album}，年份={year}，匹配度={confidence}，{has_cover}",
+            status="ok" if scraped.get("cover_url") else "warning",
+        )
 
     def _build_scraped(self, recording: Dict, release: Optional[Dict] = None) -> Dict:
         """构建刮削数据"""

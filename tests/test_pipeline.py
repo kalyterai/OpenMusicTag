@@ -87,7 +87,8 @@ class PipelineTextAndConfigTests(unittest.TestCase):
             "album": "精選輯",
         }
 
-        cleaned = CleanRawTagsStage().process(audio_file, context=None)
+        context = PipelineContext(AppConfig(input_path=Path("input"), output_path=Path("output")))
+        cleaned = CleanRawTagsStage().process(audio_file, context)
 
         self.assertEqual(cleaned.raw_tags["title"], "喜欢你")
         self.assertEqual(cleaned.raw_tags["artist"], "G.E.M. 邓紫棋")
@@ -101,7 +102,8 @@ class PipelineTextAndConfigTests(unittest.TestCase):
             "album": "测试\uE000专辑",
         }
 
-        normalized = NormalizeArtistStage().process(audio_file, context=None)
+        context = PipelineContext(AppConfig(input_path=Path("input"), output_path=Path("output")))
+        normalized = NormalizeArtistStage().process(audio_file, context)
 
         self.assertEqual(normalized.raw_tags["artist"], "邓紫棋 & 周杰伦")
         self.assertEqual(normalized.raw_tags["albumartist"], "邓紫棋")
@@ -235,6 +237,12 @@ class PipelineIntegrationTests(unittest.TestCase):
             # trace 应逐环节记录，且成功时无 failed
             self.assertTrue(len(trace) > 0)
             self.assertTrue(all(e["status"] != "failed" for e in trace))
+            # 环节应带有人类可读说明，而不再是空白 OK
+            self.assertTrue(all("message" in e for e in trace))
+            self.assertTrue(any(e.get("message") for e in trace))
+            # 从文件名补全标题/艺人时应记录「之前 → 现在」变化
+            filename_stage = next(e for e in trace if e["stage"] == "解析文件名")
+            self.assertTrue(any(c.get("after") for c in filename_stage.get("changes", [])))
 
             written = WAVE(expected_path)
             self.assertEqual(str(written.tags.get("TPE1")), "测试歌手")
