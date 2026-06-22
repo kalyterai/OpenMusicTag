@@ -150,13 +150,16 @@ function AudioPlayer({ file }) {
 
   useEffect(() => {
     if (!('mediaSession' in navigator) || typeof window.MediaMetadata !== 'function') return;
+    // Media Session 的 artwork 只接受 http/https/data/blob，file:// 会报错；
+    // 因此仅在封面是受支持的 scheme（如内嵌封面的 data URL）时才设置 artwork。
+    const artwork = /^(data|blob|https?):/i.test(cover)
+      ? [{ src: cover, sizes: '512x512', type: cover.startsWith('data:image/jpeg') ? 'image/jpeg' : 'image/png' }]
+      : [];
     navigator.mediaSession.metadata = new window.MediaMetadata({
       title: mediaTitle,
       artist: file?.artist || file?.tags?.artist || '',
       album: file?.album || file?.tags?.album || '',
-      artwork: [
-        { src: cover, sizes: '512x512', type: cover.startsWith('data:image/jpeg') ? 'image/jpeg' : 'image/png' },
-      ],
+      artwork,
     });
   }, [cover, file?.album, file?.artist, file?.tags?.album, file?.tags?.artist, mediaTitle]);
 
