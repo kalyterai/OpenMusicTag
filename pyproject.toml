@@ -1,7 +1,7 @@
 [project]
 name = "openmusictag"
 version = "0.1.0"
-description = "Add your description here"
+description = "通用音乐刮削软件"
 requires-python = ">=3.14"
 dependencies = [
     "musicbrainzngs>=0.7.1",
