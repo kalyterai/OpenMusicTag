@@ -47,6 +47,9 @@ done
 FIRST_RUN_HELPER="$PROJECT_ROOT/scripts/macos/首次打开.command"
 ZIP="$DIST_DIR/OpenMusicTag-mac.zip"
 
+# 打包用的 Python（须同时装有 PyQt6 与 PyInstaller）。可用 PYTHON=... 覆盖。
+PYTHON="${PYTHON:-python3}"
+
 DEV_ID_APP="${DEV_ID_APP:-}"
 if [[ -z "$DEV_ID_APP" ]]; then
   echo "⚠️  未设置 DEV_ID_APP —— 使用 ad-hoc 签名。"
@@ -65,8 +68,8 @@ if [[ "$DO_BUILD" == "1" ]]; then
   echo "==> 构建前端"
   (cd "$GUI_DIR" && npm run build)
   cp "$GUI_DIR/src/assets/logo.png" "$GUI_DIR/logo.png"
-  echo "==> PyInstaller 打包"
-  (cd "$PROJECT_ROOT" && python -m PyInstaller --noconfirm --clean "$PROJECT_ROOT/OpenMusicTag.spec")
+  echo "==> PyInstaller 打包（$($PYTHON --version 2>&1)）"
+  (cd "$PROJECT_ROOT" && "$PYTHON" -m PyInstaller --noconfirm --clean "$PROJECT_ROOT/OpenMusicTag.spec")
 fi
 
 [[ -d "$APP" ]] || { echo "找不到 $APP，先运行不带 --no-build 的命令。" >&2; exit 1; }
