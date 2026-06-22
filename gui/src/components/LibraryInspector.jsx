@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { formatFileSize } from '../utils/format';
 import logo from '../assets/logo.png';
 
@@ -104,11 +105,12 @@ function ArtworkFrame({ file }) {
           <span>未读取到封面</span>
         </div>
       )}
-      {zoom && cover && (
+      {zoom && cover && createPortal(
         <div className="artwork-lightbox" role="dialog" aria-modal="true" onClick={() => setZoom(false)}>
           <img src={cover} alt="封面大图" onClick={(event) => event.stopPropagation()} />
           <button type="button" className="artwork-lightbox-close" onClick={() => setZoom(false)} aria-label="关闭">×</button>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

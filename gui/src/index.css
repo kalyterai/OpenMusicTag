@@ -302,7 +302,8 @@ textarea:focus-visible {
 .task-song-paths {
   display: grid;
   gap: 6px;
-  padding-top: 12px;
+  /* 与上方 .library-inspector-body 的 24px 内边距对齐，使路径左缘对齐封面左缘 */
+  padding: 12px 24px 0;
   margin-top: 4px;
   border-top: 1px solid var(--line);
 }
@@ -395,16 +396,52 @@ textarea:focus-visible {
   white-space: nowrap;
 }
 
-.task-delete-confirm {
-  display: inline-flex;
-  gap: 6px;
-}
-
-.task-delete-confirm .btn,
 .task-delete-btn {
   min-height: 30px;
   padding: 5px 10px;
   font-size: 12px;
+}
+
+/* 删除二次确认模态框 */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 18, 14, 0.5);
+  animation: fadeIn 140ms ease;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 380px;
+  padding: 22px 24px 18px;
+  border-radius: 16px;
+  background: var(--surface, #fffdf7);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-title {
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 850;
+}
+
+.modal-body {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 /* 删除后可撤销提示（右下角浮条，6 秒后自动消失） */
@@ -480,11 +517,39 @@ textarea:focus-visible {
 }
 
 /* ===== 详细日志 - 环节明细 ===== */
+/* 环节按执行先后纵向排列，左侧序号 + 连线标明顺序 */
+.log-stage-flow {
+  margin-top: 12px;
+  position: relative;
+  display: grid;
+  gap: 10px;
+  padding-left: 4px;
+}
+
 .log-stage {
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 253, 247, 0.6);
+}
+
+.log-stage-order {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--groove, #1f5f63);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+
+.log-stage.is-alert .log-stage-order {
+  background: var(--red, #c15640);
 }
 
 .log-stage.is-alert {
@@ -851,30 +916,31 @@ textarea:focus-visible {
   padding: 0;
 }
 
+/* 文件/目录列表：贴近操作系统资源管理器的紧凑纯列表，无边框框 */
 .library-file-row {
   width: 100%;
   min-width: 0;
-  min-height: 48px;
-  padding: 12px 14px;
+  min-height: 30px;
+  padding: 5px 10px;
   overflow: hidden;
   color: var(--ink);
-  font-weight: 820;
+  font-weight: 600;
+  font-size: 13px;
   text-align: left;
   cursor: pointer;
-  background: rgba(255, 253, 247, 0.86);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
   box-shadow: none;
 }
 
 .library-file-row:hover {
-  border-color: rgba(31, 95, 99, 0.32);
-  background: rgba(246, 249, 242, 0.96);
+  background: rgba(31, 95, 99, 0.07);
 }
 
 .library-file-row.is-selected {
-  border-color: rgba(31, 95, 99, 0.42);
   background: var(--groove-soft);
+  font-weight: 760;
 }
 
 .middle-ellipsis {
@@ -902,10 +968,10 @@ textarea:focus-visible {
   flex: 1;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  padding: 12px;
+  padding: 6px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 1px;
 }
 
 .library-unified-list {

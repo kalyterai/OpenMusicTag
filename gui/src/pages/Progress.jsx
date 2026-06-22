@@ -98,13 +98,14 @@ function StageChange({ change }) {
   );
 }
 
-function StageRow({ stage }) {
+function StageRow({ stage, order, total }) {
   const status = stage.status || 'ok';
   const isAlert = status === 'failed' || status === 'error' || status === 'warning';
   const changes = stage.changes || [];
   return (
     <div className={`log-stage ${isAlert ? 'is-alert' : ''}`}>
       <div className="log-stage-head">
+        <span className="log-stage-order" title={`第 ${order} / ${total} 步`}>{order}</span>
         <span className="log-stage-name">{stage.stage}</span>
         <span className={`chip ${stageStatusChipClass(status)}`}>{stageStatusLabel(status)}</span>
         {stage.duration_ms ? <span className="log-stage-time">{stage.duration_ms}ms</span> : null}
@@ -132,9 +133,14 @@ function LogRecord({ record }) {
         <div className="truncate-1 mono" style={{ minWidth: 0, fontSize: 12, color: 'var(--ink-soft)' }}>{record.source}</div>
         <span className={`chip ${stageStatusChipClass(status)}`}>{stageStatusLabel(status)}</span>
       </div>
-      <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
+      <div className="log-stage-flow">
         {(record.stages || []).map((stage, index) => (
-          <StageRow key={`${stage.stage}-${index}`} stage={stage} />
+          <StageRow
+            key={`${stage.stage}-${index}`}
+            stage={stage}
+            order={index + 1}
+            total={(record.stages || []).length}
+          />
         ))}
         {(record.stages || []).length === 0 && (
           <div style={{ fontSize: 12, color: 'var(--faint)' }}>没有记录到环节明细。</div>
@@ -208,7 +214,7 @@ export default function Progress() {
   const [selectedTask, setSelectedTask] = useState(null);
   const [taskSongs, setTaskSongs] = useState([]);
   const [taskLog, setTaskLog] = useState([]);
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [confirmTask, setConfirmTask] = useState(null); // 待确认删除的任务（模态框）
   const [deletingId, setDeletingId] = useState(null);
   const [undoTask, setUndoTask] = useState(null); // 最近软删除的任务，供「撤销」找回
   const undoTimerRef = useRef(null);
@@ -328,7 +334,7 @@ export default function Progress() {
       // 忽略：删除失败时保留原列表
     } finally {
       setDeletingId(null);
-      setConfirmDeleteId(null);
+      setConfirmTask(null);
     }
   };
 
@@ -487,27 +493,13 @@ export default function Progress() {
                         <div>{(task.finished_at || '').replace('T', ' ') || '-'}</div>
                       </td>
                       <td className="task-cell-actions" onClick={(event) => event.stopPropagation()}>
-                        {confirmDeleteId === task.id ? (
-                          <div className="task-delete-confirm">
-                            <button
-                              type="button"
-                              className="btn btn-danger"
-                              disabled={deletingId === task.id}
-                              onClick={() => handleDeleteTask(task)}
-                            >
-                              {deletingId === task.id ? '删除中…' : '确认删除'}
-                            </button>
-                            <button type="button" className="btn btn-secondary" onClick={() => setConfirmDeleteId(null)}>取消</button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            className="btn btn-secondary task-delete-btn"
-                            onClick={() => setConfirmDeleteId(task.id)}
-                          >
-                            删除
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          className="btn btn-secondary task-delete-btn"
+                          onClick={() => setConfirmTask(task)}
+                        >
+                          删除
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -516,6 +508,40 @@ export default function Progress() {
             </div>
           )}
         </section>
+
+        {confirmTask && (
+          <div
+            className="modal-overlay"
+            role="dialog"
+            aria-modal="true"
+            onClick={() => { if (!deletingId) setConfirmTask(null); }}
+          >
+            <div className="modal-card animate-slideIn" onClick={(event) => event.stopPropagation()}>
+              <h3 className="modal-title">删除任务 #{confirmTask.id}？</h3>
+              <p className="modal-body">
+                将从任务列表中移除该任务，仍可在删除后的 6 秒内撤销找回。
+              </p>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={deletingId === confirmTask.id}
+                  onClick={() => setConfirmTask(null)}
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  disabled={deletingId === confirmTask.id}
+                  onClick={() => handleDeleteTask(confirmTask)}
+                >
+                  {deletingId === confirmTask.id ? '删除中…' : '确认删除'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {undoTask && (
           <div className="undo-toast animate-slideIn" role="status">
