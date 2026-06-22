@@ -6,6 +6,12 @@
 #   bash scripts/macos_release.sh              # 完整流程（构建 + 签名 + DMG + 公证）
 #   bash scripts/macos_release.sh --no-build   # 跳过 PyInstaller，对已有 .app 操作
 #   bash scripts/macos_release.sh --no-notarize  # 只签名 + 打 DMG，不公证
+#   bash scripts/macos_release.sh --zip          # 额外产出 GitHub 分发用 zip
+#                                                # （含 app + 首次打开.command）
+#
+# GitHub 免费分发（无 Developer 账号）典型用法：
+#   bash scripts/macos_release.sh --zip --no-notarize
+#   → 上传 dist/OpenMusicTag-mac.zip 到 Release，用户解压后双击「首次打开.command」
 #
 # 凭据（环境变量，二选一的方式提供公证凭据）：
 #   DEV_ID_APP   "Developer ID Application: 你的名字 (TEAMID)"
@@ -28,13 +34,18 @@ DMG="$DIST_DIR/OpenMusicTag.dmg"
 
 DO_BUILD=1
 DO_NOTARIZE=1
+DO_ZIP=0
 for arg in "$@"; do
   case "$arg" in
     --no-build) DO_BUILD=0 ;;
     --no-notarize) DO_NOTARIZE=0 ;;
+    --zip) DO_ZIP=1 ;;
     *) echo "未知参数: $arg" >&2; exit 2 ;;
   esac
 done
+
+FIRST_RUN_HELPER="$PROJECT_ROOT/scripts/macos/首次打开.command"
+ZIP="$DIST_DIR/OpenMusicTag-mac.zip"
 
 DEV_ID_APP="${DEV_ID_APP:-}"
 if [[ -z "$DEV_ID_APP" ]]; then
@@ -111,6 +122,25 @@ fi
 if [[ -n "${DEV_ID_APP:-}" ]]; then
   echo "==> 签名 DMG"
   codesign --force --timestamp --sign "$DEV_ID_APP" "$DMG"
+fi
+
+# ---------------------------------------------------------------------------
+# 3b. 打 zip（GitHub 分发用：app + 首次打开.command，保留权限）
+# ---------------------------------------------------------------------------
+if [[ "$DO_ZIP" == "1" ]]; then
+  echo "==> 生成发布 zip"
+  STAGE="$DIST_DIR/_ziproot/OpenMusicTag"
+  rm -rf "$DIST_DIR/_ziproot" "$ZIP"
+  mkdir -p "$STAGE"
+  cp -R "$APP" "$STAGE/"
+  if [[ -f "$FIRST_RUN_HELPER" ]]; then
+    cp "$FIRST_RUN_HELPER" "$STAGE/"
+    chmod +x "$STAGE/$(basename "$FIRST_RUN_HELPER")"
+  fi
+  # ditto 生成的 zip 能正确保留 .app 结构与可执行权限
+  (cd "$DIST_DIR/_ziproot" && ditto -c -k --sequesterRsrc --keepParent "OpenMusicTag" "$ZIP")
+  rm -rf "$DIST_DIR/_ziproot"
+  echo "✓ 发布 zip：$ZIP"
 fi
 
 # ---------------------------------------------------------------------------

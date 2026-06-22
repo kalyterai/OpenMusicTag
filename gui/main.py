@@ -9,6 +9,11 @@ from pathlib import Path
 # 确保 gui 目录在路径中
 sys.path.insert(0, str(Path(__file__).parent))
 
+# 屏蔽封面图常见的 ICC 色彩配置告警（"qt.gui.icc: fromIccProfile: failed size sanity"）。
+# 这是用户音频文件内嵌封面带了非标准 profile 所致，纯噪音、不影响渲染。
+# 须在导入 PyQt6 之前设置才会生效。
+os.environ.setdefault("QT_LOGGING_RULES", "qt.gui.icc=false")
+
 from PyQt6.QtCore import QTimer, QUrl
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox
 from PyQt6.QtWebEngineWidgets import QWebEngineView
