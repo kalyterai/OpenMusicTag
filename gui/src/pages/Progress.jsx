@@ -210,12 +210,13 @@ function InfoTip({ text }) {
   );
 }
 
-function SongInspectorPaths({ song, outputRoot }) {
+function SongInspectorPaths({ song, inputRoot, outputRoot }) {
   if (!song) return null;
+  const inInner = relativeToRoot(song.source_path, inputRoot) || song.source_path;
   const outInner = relativeToRoot(song.output_path, outputRoot) || song.output_path;
   return (
     <div className="task-song-paths">
-      <div className="task-song-path"><span>来源目录</span><code className="mono truncate-1" title={song.source_path}>{song.source_path || '-'}</code></div>
+      <div className="task-song-path"><span>来源目录</span><code className="mono truncate-1" title={inInner}>{inInner || '-'}</code></div>
       <div className="task-song-path"><span>输出目录</span><code className="mono truncate-1" title={outInner}>{outInner || '-'}</code></div>
     </div>
   );
@@ -801,7 +802,7 @@ export default function Progress() {
                 onShowLog={() => setRightView('log')}
               />
             )}
-            footerExtra={<SongInspectorPaths song={matchedSong} outputRoot={selectedTask.output_path} />}
+            footerExtra={<SongInspectorPaths song={matchedSong} inputRoot={selectedTask.input_path} outputRoot={selectedTask.output_path} />}
           />
         ) : (
           <EmptyInspector
