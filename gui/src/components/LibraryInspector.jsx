@@ -79,15 +79,35 @@ export function DetailField({ label, value, mono = false }) {
 
 function ArtworkFrame({ file }) {
   const cover = file.coverDataUrl || file.cover_data_url || file.artwork || file.picture;
+  const [zoom, setZoom] = useState(false);
+
+  useEffect(() => {
+    if (!zoom) return undefined;
+    const onKey = (event) => { if (event.key === 'Escape') setZoom(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [zoom]);
 
   return (
     <div className="library-artwork">
       {cover ? (
-        <img src={cover} alt={`${file.name || '音频'}封面`} />
+        <img
+          src={cover}
+          alt={`${file.name || '音频'}封面`}
+          className="library-artwork-img"
+          onClick={() => setZoom(true)}
+          title="点击全屏查看"
+        />
       ) : (
         <div className="library-artwork-empty">
           <Icons.Disc />
           <span>未读取到封面</span>
+        </div>
+      )}
+      {zoom && cover && (
+        <div className="artwork-lightbox" role="dialog" aria-modal="true" onClick={() => setZoom(false)}>
+          <img src={cover} alt="封面大图" onClick={(event) => event.stopPropagation()} />
+          <button type="button" className="artwork-lightbox-close" onClick={() => setZoom(false)} aria-label="关闭">×</button>
         </div>
       )}
     </div>

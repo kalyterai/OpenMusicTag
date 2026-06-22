@@ -93,6 +93,22 @@ class StorageTaskSongTests(unittest.TestCase):
         self.assertEqual(recent[0]["input_path"], "/in/2")
         self.assertEqual(recent[-1]["input_path"], "/in/0")
 
+    def test_delete_task_is_soft_and_hidden_from_list(self):
+        keep = self.storage.create_task("/in/keep", "/out")
+        drop = self.storage.create_task("/in/drop", "/out")
+        self.storage.add_song(drop, "success", source_path="/in/drop/a.mp3")
+
+        self.assertTrue(self.storage.delete_task(drop))
+
+        recent = self.storage.get_recent_tasks(10)
+        ids = [t["id"] for t in recent]
+        self.assertIn(keep, ids)
+        self.assertNotIn(drop, ids)
+        # 软删除：单曲数据仍保留，可继续查询
+        self.assertEqual(len(self.storage.get_task_songs(drop)), 1)
+        # 重复删除返回 False（已删除）
+        self.assertFalse(self.storage.delete_task(drop))
+
     def test_task_execution_config_round_trip(self):
         task_id = self.storage.create_task(
             "/in", "/out", threads=6,

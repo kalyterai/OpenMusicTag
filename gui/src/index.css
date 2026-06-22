@@ -327,17 +327,83 @@ textarea:focus-visible {
 }
 
 /* ===== 任务列表双行单元格 ===== */
-.task-list-table th .th-hint {
-  display: block;
-  margin-top: 2px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--faint);
-}
-
 .task-cell-sub {
   margin-top: 3px;
   color: var(--muted);
+  font-size: 12px;
+}
+
+/* 表头「统计数据」旁的提示小图标 */
+.th-with-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.info-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 253, 247, 0.9);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  font-style: italic;
+  cursor: help;
+}
+
+.info-tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 9px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+  z-index: 30;
+}
+
+.info-tip:hover::after {
+  opacity: 1;
+}
+
+.task-cell-time {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.task-cell-time div + div {
+  margin-top: 3px;
+  color: var(--muted);
+}
+
+.task-cell-actions {
+  white-space: nowrap;
+}
+
+.task-delete-confirm {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.task-delete-confirm .btn,
+.task-delete-btn {
+  min-height: 30px;
+  padding: 5px 10px;
   font-size: 12px;
 }
 
@@ -569,10 +635,10 @@ textarea:focus-visible {
 
 .table-skeleton-row {
   display: grid;
-  grid-template-columns: 56px minmax(240px, 1.6fr) 96px minmax(120px, 0.8fr) minmax(150px, 1fr);
+  grid-template-columns: 56px minmax(240px, 1.6fr) 96px minmax(110px, 0.7fr) minmax(150px, 1fr) 88px;
   gap: 14px;
   align-items: center;
-  min-width: 760px;
+  min-width: 820px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--line);
 }
@@ -847,6 +913,52 @@ textarea:focus-visible {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.library-artwork-img {
+  cursor: zoom-in;
+}
+
+/* 封面全屏查看 */
+.artwork-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4vh 4vw;
+  background: rgba(20, 18, 14, 0.82);
+  cursor: zoom-out;
+  animation: fadeIn 140ms ease;
+}
+
+.artwork-lightbox img {
+  max-width: 92vw;
+  max-height: 92vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  cursor: default;
+}
+
+.artwork-lightbox-close {
+  position: fixed;
+  top: 20px;
+  right: 24px;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.artwork-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.28);
 }
 
 .library-artwork-empty {

@@ -81,18 +81,6 @@ const stageStatusChipClass = (status) => (
         : status === 'success' || status === 'ok' ? 'chip-green' : ''
 );
 
-function StatusBadge({ status, children }) {
-  const cls = {
-    success: 'chip-green',
-    error: 'chip-red',
-    processing: 'chip-blue',
-    warning: 'chip-amber',
-    info: '',
-  }[status] || '';
-
-  return <span className={`chip ${cls}`}>{children}</span>;
-}
-
 function StageChange({ change }) {
   const before = change.before;
   const after = change.after;
@@ -183,6 +171,12 @@ function SongInspectorHeader({ song, hasLog, onShowLog }) {
   );
 }
 
+function InfoTip({ text }) {
+  return (
+    <span className="info-tip" data-tip={text} role="img" aria-label={text}>i</span>
+  );
+}
+
 function SongInspectorPaths({ song }) {
   if (!song) return null;
   return (
@@ -214,6 +208,8 @@ export default function Progress() {
   const [selectedTask, setSelectedTask] = useState(null);
   const [taskSongs, setTaskSongs] = useState([]);
   const [taskLog, setTaskLog] = useState([]);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   // 输出目录浏览状态（与资源库详情一致）
   const [outputPath, setOutputPath] = useState('');
@@ -299,6 +295,22 @@ export default function Progress() {
       return false;
     } finally {
       setOutLoading(null);
+    }
+  };
+
+  const handleDeleteTask = async (task) => {
+    setDeletingId(task.id);
+    try {
+      const ok = await callQt('delete_task', task.id);
+      if (ok) {
+        setTasks((prev) => prev.filter((t) => t.id !== task.id));
+        if (selectedTask?.id === task.id) setSelectedTask(null);
+      }
+    } catch (e) {
+      // 忽略：删除失败时保留原列表
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteId(null);
     }
   };
 
@@ -395,6 +407,7 @@ export default function Progress() {
                   <span />
                   <span />
                   <span />
+                  <span />
                 </div>
               ))}
             </div>
@@ -414,8 +427,9 @@ export default function Progress() {
                     <th>任务ID</th>
                     <th>执行目录</th>
                     <th>状态</th>
-                    <th>统计数据<span className="th-hint">失败/成功/总数</span></th>
-                    <th>执行时间<span className="th-hint">开始/结束</span></th>
+                    <th><span className="th-with-tip">统计数据<InfoTip text="失败 / 成功 / 总数" /></span></th>
+                    <th>执行时间</th>
+                    <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -436,7 +450,30 @@ export default function Progress() {
                       </td>
                       <td className="task-cell-time">
                         <div>{(task.started_at || '').replace('T', ' ') || '-'}</div>
-                        <div className="task-cell-sub">{(task.finished_at || '').replace('T', ' ') || '-'}</div>
+                        <div>{(task.finished_at || '').replace('T', ' ') || '-'}</div>
+                      </td>
+                      <td className="task-cell-actions" onClick={(event) => event.stopPropagation()}>
+                        {confirmDeleteId === task.id ? (
+                          <div className="task-delete-confirm">
+                            <button
+                              type="button"
+                              className="btn btn-danger"
+                              disabled={deletingId === task.id}
+                              onClick={() => handleDeleteTask(task)}
+                            >
+                              {deletingId === task.id ? '删除中…' : '确认删除'}
+                            </button>
+                            <button type="button" className="btn btn-secondary" onClick={() => setConfirmDeleteId(null)}>取消</button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn btn-secondary task-delete-btn"
+                            onClick={() => setConfirmDeleteId(task.id)}
+                          >
+                            删除
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -473,9 +510,6 @@ export default function Progress() {
             <span>/</span>
             <b>{selectedTotal}</b>
           </div>
-          <StatusBadge status={selectedTask.status === 'failed' || selectedTask.status === 'error' ? 'error' : (isRunning ? 'processing' : 'info')}>
-            {taskStatusLabel(selectedTask.status || taskStatus)}
-          </StatusBadge>
           <button type="button" className="btn btn-secondary" onClick={() => setSelectedTask(null)}>返回任务列表</button>
           {isRunning && taskStatus === 'processing' && (
             <>
@@ -488,9 +522,6 @@ export default function Progress() {
                 停止
               </button>
             </>
-          )}
-          {selectedTask.status === 'completed' && (
-            <button type="button" className="btn btn-primary" onClick={() => setCurrentPage('files')}>查看资源库</button>
           )}
         </div>
       </header>

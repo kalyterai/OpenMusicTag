@@ -216,9 +216,11 @@ export default function Home() {
           </p>
         </div>
         <div className="toolbar">
-          <button type="button" className="btn btn-primary" onClick={handleChooseRoot}>
-            切换根目录
-          </button>
+          {store.currentPath && (
+            <button type="button" className="btn btn-primary" onClick={handleCreateScrapeFromCurrentPath}>
+              用当前目录新建刮削
+            </button>
+          )}
         </div>
       </header>
 
@@ -228,8 +230,8 @@ export default function Home() {
           <span className="library-current-path mono" title={store.currentPath}>
             {store.currentPath}
           </span>
-          <button type="button" className="btn btn-secondary" onClick={handleCreateScrapeFromCurrentPath}>
-            用当前目录新建刮削
+          <button type="button" className="btn btn-secondary" onClick={handleChooseRoot}>
+            切换根目录
           </button>
         </div>
       )}

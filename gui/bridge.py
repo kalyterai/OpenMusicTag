@@ -390,6 +390,15 @@ class Bridge(QObject):
             print(f"[ERROR] 读取任务详情失败: {e}")
             return {}
 
+    @pyqtSlot(int, result=bool)
+    def delete_task(self, task_id: int) -> bool:
+        """软删除任务（仅从列表隐藏，保留单曲/环节/日志数据）。"""
+        try:
+            return self.storage.delete_task(task_id)
+        except Exception as e:
+            print(f"[ERROR] 删除任务失败: {e}")
+            return False
+
     @pyqtSlot(int, result=list)
     def get_daily_activity(self, days: int = 7) -> list:
         """最近 N 天每天成功处理的歌曲数（活跃度图）。"""

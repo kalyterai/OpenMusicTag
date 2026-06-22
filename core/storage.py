@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     finished_at  TEXT,                                     -- 业务：任务结束时间
     duration_ms  INTEGER,                                  -- 业务：耗时（毫秒）
     log_path     TEXT,                                     -- 本次任务的详细日志文件（JSONL）路径
+    gmt_deleted  TEXT,                                     -- 软删除时间（NULL 表示未删除）
     gmt_create   TEXT NOT NULL DEFAULT ({_TS_SQL}),        -- 审计：记录创建时间（自动）
     gmt_modified TEXT NOT NULL DEFAULT ({_TS_SQL})         -- 审计：记录最后更新时间（触发器自动刷新）
 );
@@ -254,6 +255,8 @@ class Storage:
                 self._conn.execute("ALTER TABLE songs ADD COLUMN error_message TEXT")
             if task_cols and "log_path" not in task_cols:
                 self._conn.execute("ALTER TABLE tasks ADD COLUMN log_path TEXT")
+            if task_cols and "gmt_deleted" not in task_cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN gmt_deleted TEXT")
 
             # 回填旧数据的审计字段（用业务时间近似）
             self._conn.execute(
@@ -460,9 +463,24 @@ class Storage:
     def get_recent_tasks(self, limit: int = 10) -> List[Dict[str, Any]]:
         with self._lock:
             rows = self._conn.execute(
-                "SELECT * FROM tasks ORDER BY id DESC LIMIT ?", (int(limit),)
+                "SELECT * FROM tasks WHERE gmt_deleted IS NULL"
+                " ORDER BY id DESC LIMIT ?", (int(limit),)
             ).fetchall()
         return [self._row_to_task(r) for r in rows]
+
+    def delete_task(self, task_id: int) -> bool:
+        """软删除任务：标记 gmt_deleted，使其从任务列表中隐藏。
+
+        采用软删除而非物理删除：保留 songs / song_events / JSONL 日志，
+        便于后续找回或继续做跨任务统计，也避免误删不可逆。
+        """
+        with self._lock:
+            cur = self._conn.execute(
+                "UPDATE tasks SET gmt_deleted=? WHERE id=? AND gmt_deleted IS NULL",
+                (_now(), int(task_id)),
+            )
+            self._conn.commit()
+            return cur.rowcount > 0
 
     def get_task(self, task_id: int) -> Optional[Dict[str, Any]]:
         with self._lock:
