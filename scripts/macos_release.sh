@@ -140,8 +140,11 @@ if [[ "$DO_ZIP" == "1" ]]; then
     cp "$FIRST_RUN_HELPER" "$STAGE/"
     chmod +x "$STAGE/$(basename "$FIRST_RUN_HELPER")"
   fi
-  # ditto 生成的 zip 能正确保留 .app 结构与可执行权限
-  (cd "$DIST_DIR/_ziproot" && ditto -c -k --sequesterRsrc --keepParent "OpenMusicTag" "$ZIP")
+  # 清掉扩展属性，避免 zip 里出现 __MACOSX/._* 附属文件（不影响代码签名）
+  xattr -cr "$STAGE"
+  # zip -X 不写附属元数据、-y 保留符号链接、-q 安静；签名在 _CodeSignature/
+  # 与 Mach-O 内，均为普通文件，不受 -X 影响
+  (cd "$DIST_DIR/_ziproot" && zip -q -r -y -X "$ZIP" "OpenMusicTag")
   rm -rf "$DIST_DIR/_ziproot"
   echo "✓ 发布 zip：$ZIP"
 fi
